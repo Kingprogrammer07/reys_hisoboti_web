@@ -14,6 +14,10 @@ export interface ReysItem {
   toza_kg: number;
   karobka_plus_kg: number;
   date: string;
+  custom_name?: string;
+  original_toza_kg?: number;
+  original_karobka_plus_kg?: number;
+  adjustment_diff_kg?: number;
 }
 
 export interface CargoItem {
@@ -54,3 +58,15 @@ export interface UserSession {
   auth_type: "telegram" | "passkey" | "password";
   authenticated: boolean;
 }
+
+export interface SavedEntryItem {
+  id: number;
+  boxCode: string;
+  grossWeight: number;
+  tareWeight: number;
+  netWeight: number;
+  photoUrl?: string;
+  photoUrls?: string[];
+  createdAt: string;
+}
+

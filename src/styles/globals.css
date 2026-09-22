@@ -90,3 +90,11 @@
 .pin-input {
   @apply h-14 w-12 sm:h-16 sm:w-14 rounded-xl border-2 border-border bg-background/50 text-center text-xl sm:text-2xl font-bold text-foreground transition-all duration-200 focus:border-primary focus:bg-primary/5 focus:outline-none focus:ring-4 focus:ring-primary/20 hover:border-primary/50;
 }
+
+/* Hide mobile bottom navigation bar when camera or lightbox is open */
+body.camera-active .mobile-bottom-nav {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+

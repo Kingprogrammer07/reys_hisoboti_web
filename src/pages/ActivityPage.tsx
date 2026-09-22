@@ -32,8 +32,8 @@ export const ActivityPage: React.FC = () => {
             <tr>
               <th className="px-4 py-3.5">Vaqt</th>
               <th className="px-4 py-3.5">Tovar Turi</th>
-              <th className="px-4 py-3.5 text-right">Brutto (kg)</th>
-              <th className="px-4 py-3.5 text-right">Tara / Koef</th>
+              <th className="px-4 py-3.5 text-right">Og'irlik (kg)</th>
+              <th className="px-4 py-3.5 text-right">Karobka og'irligi</th>
               <th className="px-4 py-3.5 text-right">Sof Vazn (kg)</th>
               <th className="px-4 py-3.5">Manba</th>
               <th className="px-4 py-3.5 text-center">Rasmlar</th>

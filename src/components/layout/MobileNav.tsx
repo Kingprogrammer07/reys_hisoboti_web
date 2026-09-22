@@ -1,19 +1,48 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Truck, History, User } from "lucide-react";
+import { LayoutDashboard, Truck, History } from "lucide-react";
 
 export const MobileNav: React.FC = () => {
   const location = useLocation();
+
+  // Listen to body class 'camera-active' so it unmounts immediately when camera opens
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(() => 
+    typeof document !== "undefined" && document.body.classList.contains("camera-active")
+  );
+
+  useEffect(() => {
+    const checkState = () => {
+      setIsCameraActive(document.body.classList.contains("camera-active"));
+    };
+
+    checkState();
+
+    const observer = new MutationObserver(checkState);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("camera-state-change", checkState);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("camera-state-change", checkState);
+    };
+  }, []);
+
+  // Check if current page is an entry workflow page (/reports/reys/:id/entry/...)
+  const isEntryPage = location.pathname.includes("/entry");
+
+  // If camera, fullscreen lightbox, or entry workflow page is active, do not render bottom navbar at all
+  if (isCameraActive || isEntryPage) {
+    return null;
+  }
 
   const navItems = [
     { label: "Bosh sahifa", path: "/", icon: LayoutDashboard },
     { label: "Reyslar", path: "/reports", icon: Truck },
     { label: "Faollik", path: "/activity", icon: History },
-    { label: "Kirish", path: "/login", icon: User },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-white/10 bg-background/90 backdrop-blur-xl">
+    <div className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 md:hidden border-t border-white/10 bg-background/90 backdrop-blur-xl">
       <nav className="flex h-16 items-center justify-around px-2">
         {navItems.map((item) => {
           const Icon = item.icon;

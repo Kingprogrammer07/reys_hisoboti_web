@@ -1,10 +1,36 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Truck, History, LogIn, ShieldCheck, Sun, Moon, Globe } from "lucide-react";
+import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const [isDark, setIsDark] = React.useState(true);
+  const [isDark, setIsDark] = useState(true);
+
+  // Listen to body class 'camera-active' so top navbar unmounts when camera or lightbox is open
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(() => 
+    typeof document !== "undefined" && document.body.classList.contains("camera-active")
+  );
+
+  useEffect(() => {
+    const checkState = () => {
+      setIsCameraActive(document.body.classList.contains("camera-active"));
+    };
+
+    checkState();
+
+    const observer = new MutationObserver(checkState);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("camera-state-change", checkState);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("camera-state-change", checkState);
+    };
+  }, []);
+
+  if (isCameraActive) {
+    return null;
+  }
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -18,28 +44,25 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-background/80 backdrop-blur-xl transition-colors">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-background/80 backdrop-blur-xl transition-colors">
+      <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         
-        {/* Brand / Logo */}
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 shadow-lg shadow-orange-500/20">
-            <Truck className="h-5 w-5 text-white" />
+        {/* Brand / Logo: Hisobot oynasi */}
+        <Link to="/" className="flex items-center space-x-2.5 sm:space-x-3 group">
+          <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-emerald-600 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform shrink-0">
+            <FileSpreadsheet className="h-5 w-5" />
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold tracking-tight text-foreground text-lg">
-                Mandarin <span className="gradient-text">Logistics</span>
-              </span>
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                <Globe className="mr-1 h-3 w-3" /> Standalone Web
+          <div className="min-w-0">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-extrabold tracking-tight text-foreground text-base sm:text-lg group-hover:text-emerald-400 transition-colors truncate">
+                Hisobot oynasi
               </span>
             </div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              Reys Hisoboti va Ombor Monitoringi
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block truncate">
+              Reys hisoboti va monitoring
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center space-x-1">
@@ -64,11 +87,11 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Actions & Profile */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {/* Dark / Light Toggle */}
           <button
             onClick={toggleTheme}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Mavzuni almashtirish"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -77,7 +100,7 @@ export const Navbar: React.FC = () => {
           {/* Auth Button */}
           <Link
             to="/login"
-            className="hidden sm:inline-flex items-center space-x-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-orange-500/20 hover:bg-primary/90 transition-all active:scale-95"
+            className="hidden sm:inline-flex items-center space-x-2 rounded-lg bg-primary px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-primary-foreground shadow-lg shadow-emerald-500/20 hover:bg-primary/90 transition-all active:scale-95"
           >
             <ShieldCheck className="h-4 w-4" />
             <span>Tizimga kirish</span>
