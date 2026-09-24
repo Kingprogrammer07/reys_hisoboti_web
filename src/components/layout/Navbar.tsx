@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { NetworkStatusBadge } from "./NetworkStatusBadge";
 import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet } from "lucide-react";
 
 export const Navbar: React.FC = () => {
@@ -88,6 +89,7 @@ export const Navbar: React.FC = () => {
 
         {/* Actions & Profile */}
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <NetworkStatusBadge />
           {/* Dark / Light Toggle */}
           <button
             onClick={toggleTheme}

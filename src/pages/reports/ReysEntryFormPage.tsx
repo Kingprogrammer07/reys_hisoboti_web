@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
 import { fetchEntries, createEntry, deleteEntry } from "../../api";
+import { saveToOfflineQueue } from "../../utils/offlineQueue";
 
 export interface SavedEntryItem {
   id: number;
@@ -433,9 +434,26 @@ export const ReysEntryFormPage: React.FC = () => {
       );
       savedItem = res;
     } catch (err: any) {
-      console.warn("API save failed, using local fallback", err);
+      console.warn("API save failed, saving to IndexedDB offline queue", err);
+      try {
+        const photoBlobs = finalPhotos.map((p) => dataURLtoBlob(p));
+        await saveToOfflineQueue(
+          {
+            reys_id: reys.id,
+            box_code: currentBoxCode,
+            tovar_turi: categoryTitle,
+            gross_weight: currentGross,
+            tare_weight: activeTareWeight,
+            coefficient_mode: tareOption === "0" ? "none" : "box",
+          },
+          photoBlobs
+        );
+      } catch (idbErr) {
+        console.error("Failed to save to IndexedDB offline queue:", idbErr);
+      }
+
       savedItem = {
-        id: Date.now(),
+        id: -Date.now(),
         boxCode: currentBoxCode,
         grossWeight: currentGross,
         tareWeight: activeTareWeight,
@@ -444,6 +462,7 @@ export const ReysEntryFormPage: React.FC = () => {
         photoUrls: finalPhotos.length > 0 ? finalPhotos : undefined,
         createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       };
+      setSuccessToast(`✓ Karobka #${currentBoxCode} oflayn saqlandi (Internet ulanganda serverga yuboriladi)`);
     }
 
     setSavedEntries([savedItem, ...savedEntries]);
