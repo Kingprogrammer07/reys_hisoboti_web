@@ -22,6 +22,7 @@ export const BackupManagementCard: React.FC = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
+      setMessage(null);
       const res = await backupApi.getStats();
       setData(res);
     } catch (err: any) {

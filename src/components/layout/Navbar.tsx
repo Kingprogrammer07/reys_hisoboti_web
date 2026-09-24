@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { NetworkStatusBadge } from "./NetworkStatusBadge";
-import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet, User, LogOut } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
 
   // Listen to body class 'camera-active' so top navbar unmounts when camera or lightbox is open
@@ -99,14 +101,32 @@ export const Navbar: React.FC = () => {
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          {/* Auth Button */}
-          <Link
-            to="/login"
-            className="hidden sm:inline-flex items-center space-x-2 rounded-lg bg-primary px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-primary-foreground shadow-lg shadow-emerald-500/20 hover:bg-primary/90 transition-all active:scale-95"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            <span>Tizimga kirish</span>
-          </Link>
+          {/* Auth Button & User Profile */}
+          {isAuthenticated ? (
+            <div className="flex items-center space-x-2">
+              <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                <User className="h-3.5 w-3.5" />
+                <span>{user?.username || "admin"}</span>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition-all active:scale-95"
+                title="Tizimdan chiqish"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Chiqish</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center space-x-2 rounded-lg bg-primary px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-primary-foreground shadow-lg shadow-emerald-500/20 hover:bg-primary/90 transition-all active:scale-95"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span>Tizimga kirish</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

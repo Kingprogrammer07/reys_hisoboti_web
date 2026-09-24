@@ -1,13 +1,11 @@
 export const getApiBaseUrl = (): string => {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname || "127.0.0.1";
-    if (envUrl) {
-      return envUrl.replace("localhost", host);
-    }
-    return `http://${host}:8000`;
+  // If explicitly set and non-empty, use it
+  if (envUrl !== undefined && envUrl !== "") {
+    return envUrl;
   }
-  return envUrl || "http://127.0.0.1:8000";
+  // By default in browser, return empty string so Vite proxy forwards /api to backend
+  return "";
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -35,16 +33,33 @@ export async function request<T = any>(
     headers.set("Accept", "application/json");
   }
 
+  // Attach stored JWT/session token if present
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("reys_token");
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
   // If body is not FormData, default to application/json
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+  } catch (networkErr: any) {
+    throw new ApiError(
+      0,
+      "Server bilan aloqa o'rnatilmadi (Internet yoki server o'chiq bo'lishi mumkin)",
+      networkErr
+    );
+  }
 
   if (!response.ok) {
     let errorDetail = response.statusText;
