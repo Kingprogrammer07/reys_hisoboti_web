@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Plus, ArrowLeft, Edit2, Trash2, AlertTriangle, X, ChevronRight, RotateCcw, Clock, Filter, FileSpreadsheet, Calendar } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
+import { Search, Plus, ArrowLeft, Edit2, Trash2, AlertTriangle, X, ChevronRight, RotateCcw, Clock, Filter, FileSpreadsheet, Calendar, Package, RefreshCw } from "lucide-react";
 import { CargoItem } from "../../types";
 import {
   fetchCargos,
@@ -24,25 +23,11 @@ const formatDate = (d: Date) => d.toISOString().split("T")[0];
 // ROUTE: /reports/cargos
 export const CargoListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [cargoList, setCargoList] = useState<CargoItem[]>(MOCK_CARGOS);
+  const [cargoList, setCargoList] = useState<CargoItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Recycle Bin State
-  const [recycledCargos, setRecycledCargos] = useState<RecycledCargoItem[]>([
-    {
-      id: 888,
-      code: "KARGO-00",
-      reys_count: 2,
-      total_toza_kg: 35000,
-      total_karobka_plus_kg: 39500,
-      reyslar: [],
-      originalReyslar: [
-        { id: 901, code: "REYS-00A", toza_kg: 18000, karobka_plus_kg: 20000, date: "2026-08-01" },
-        { id: 902, code: "REYS-00B", toza_kg: 17000, karobka_plus_kg: 19500, date: "2026-08-02" },
-      ],
-      deletedAt: "2026-08-04",
-      daysRemaining: 27,
-    },
-  ]);
+  const [recycledCargos, setRecycledCargos] = useState<RecycledCargoItem[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [binSearchQuery, setBinSearchQuery] = useState("");
@@ -122,7 +107,9 @@ export const CargoListPage: React.FC = () => {
         setCargoList(res.items);
       }
     } catch (err) {
-      console.warn("Could not load cargos from API, using fallback", err);
+      console.warn("Could not load cargos from API", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -318,62 +305,90 @@ export const CargoListPage: React.FC = () => {
       </div>
 
       {/* Cargo List Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredCargos.map((cargo) => (
-          <div
-            key={cargo.id}
-            onClick={() => navigate(`/reports/cargos/${cargo.id}`)}
-            className="group cursor-pointer rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-extrabold text-foreground group-hover:text-emerald-400 transition-colors tracking-wide flex items-center space-x-1">
-                  <span>{cargo.code}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
-                </h3>
-                <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full font-medium">
-                  {cargo.reys_count} ta reys
-                </span>
+      {loading && cargoList.length === 0 ? (
+        <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-3xl">
+          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+          Kargolar ro'yxati yuklanmoqda...
+        </div>
+      ) : filteredCargos.length === 0 ? (
+        <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-3xl space-y-3">
+          <Package className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <h3 className="text-base font-semibold text-foreground">
+            {searchQuery ? "Kargo topilmadi" : "Hozircha hech qanday kargo mavjud emas"}
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            {searchQuery
+              ? `"${searchQuery}" kodi bo'yicha hech qanday kargo topilmadi.`
+              : "Yangi kargo yaratish uchun quyidagi tugmani bosing."}
+          </p>
+          {!searchQuery && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md hover:bg-primary/90 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Yangi Kargo Qo'shish</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredCargos.map((cargo) => (
+            <div
+              key={cargo.id}
+              onClick={() => navigate(`/reports/cargos/${cargo.id}`)}
+              className="group cursor-pointer rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-extrabold text-foreground group-hover:text-emerald-400 transition-colors tracking-wide flex items-center space-x-1">
+                    <span>{cargo.code}</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full font-medium">
+                    {cargo.reys_count} ta reys
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setCargoToEdit(cargo);
+                      setEditCargoCode(cargo.code);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/50 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
+                    title="Kargo kodini o'zgartirish"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCargoToDelete(cargo);
+                      setConfirmDeleteInput("");
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/50 text-muted-foreground hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+                    title="Kargoni o'chirish"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => {
-                    setCargoToEdit(cargo);
-                    setEditCargoCode(cargo.code);
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/50 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
-                  title="Kargo kodini o'zgartirish"
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setCargoToDelete(cargo);
-                    setConfirmDeleteInput("");
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/50 text-muted-foreground hover:text-rose-400 hover:border-rose-500/30 transition-colors"
-                  title="Kargoni o'chirish"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border/50">
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Toza:</span>
+                  <strong className="text-foreground">{cargo.total_toza_kg.toLocaleString()} kg</strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">karobka plus:</span>
+                  <strong className="text-emerald-400">{cargo.total_karobka_plus_kg.toLocaleString()} kg</strong>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border/50">
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Toza:</span>
-                <strong className="text-foreground">{cargo.total_toza_kg.toLocaleString()} kg</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[11px]">karobka plus:</span>
-                <strong className="text-emerald-400">{cargo.total_karobka_plus_kg.toLocaleString()} kg</strong>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* FAB (+) Add Cargo Button */}
       <button

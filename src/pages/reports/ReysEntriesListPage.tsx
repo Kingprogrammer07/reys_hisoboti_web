@@ -12,8 +12,7 @@ import {
   Camera,
   ZoomIn
 } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
-import { fetchEntries, deleteEntry } from "../../api";
+import { fetchEntries, deleteEntry, getReys } from "../../api";
 
 export interface SavedEntryItem {
   id: number;
@@ -38,14 +37,23 @@ const CATEGORY_NAMES: Record<string, string> = {
 export const ReysEntriesListPage: React.FC = () => {
   const { reysId, categoryId = "top" } = useParams<{ reysId: string; categoryId: string }>();
 
-  // Find Reys details
-  const allReys = MOCK_CARGOS.flatMap((c) => c.reyslar);
-  const reys = allReys.find((r) => r.id === Number(reysId)) || allReys[0];
+  const [reys, setReys] = useState<{ id: number; code: string; custom_name?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (reysId) {
+      getReys(Number(reysId))
+        .then((r) => {
+          if (r) setReys(r);
+        })
+        .catch(() => {});
+    }
+  }, [reysId]);
+
   const categoryTitle = CATEGORY_NAMES[categoryId] || "TOP";
+  const storageKey = `mandarin_entries_${reysId}_${categoryId}`;
 
-  const storageKey = `mandarin_entries_${reys.id}_${categoryId}`;
-
-  // Saved Entries State initialized from localStorage
+  // Saved Entries State initialized from localStorage or empty
   const [savedEntries, setSavedEntries] = useState<SavedEntryItem[]>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -53,26 +61,7 @@ export const ReysEntriesListPage: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return [
-      {
-        id: 101,
-        boxCode: "101",
-        grossWeight: 19.8,
-        tareWeight: 1.22,
-        netWeight: 18.58,
-        photoUrls: [],
-        createdAt: "10:15:20",
-      },
-      {
-        id: 102,
-        boxCode: "102",
-        grossWeight: 20.1,
-        tareWeight: 1.22,
-        netWeight: 18.88,
-        photoUrls: [],
-        createdAt: "10:16:05",
-      },
-    ];
+    return [];
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,16 +94,18 @@ export const ReysEntriesListPage: React.FC = () => {
 
   // Load entries from Backend API on mount
   useEffect(() => {
-    if (reys?.id) {
-      fetchEntries(reys.id)
+    if (reysId) {
+      setLoading(true);
+      fetchEntries(Number(reysId))
         .then((res) => {
-          if (res && Array.isArray(res.items) && res.items.length > 0) {
+          if (res && Array.isArray(res.items)) {
             setSavedEntries(res.items);
           }
         })
-        .catch((err) => console.warn("Could not load live entries from API, using cached", err));
+        .catch((err) => console.warn("Could not load live entries from API", err))
+        .finally(() => setLoading(false));
     }
-  }, [reys?.id]);
+  }, [reysId]);
 
   // Delete an entry
   const handleDeleteEntry = async (id: number) => {
@@ -142,7 +133,7 @@ export const ReysEntriesListPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="flex items-center space-x-2.5">
           <Link
-            to={`/reports/reys/${reys.id}/entry/${categoryId}`}
+            to={`/reports/reys/${reysId}/entry/${categoryId}`}
             className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground hover:bg-accent transition-colors shrink-0"
             title="Kiritish formasiga qaytish"
           >
@@ -152,7 +143,7 @@ export const ReysEntriesListPage: React.FC = () => {
             <h1 className="text-base sm:text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center flex-wrap gap-1.5">
               <span>{categoryTitle} — Yuklanganlar</span>
               <span className="text-[10px] sm:text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono shrink-0">
-                {reys.code}
+                {reys?.code || `REYS-${reysId}`}
               </span>
             </h1>
             <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
@@ -165,7 +156,7 @@ export const ReysEntriesListPage: React.FC = () => {
         <div className="flex items-center space-x-1.5 sm:space-x-2 self-end sm:self-auto shrink-0">
           <button
             type="button"
-            onClick={() => alert(`${reys.code} — ${categoryTitle} bo'yicha ${savedEntries.length} ta karobka Excel hisoboti yuklab olinmoqda...`)}
+            onClick={() => alert(`${reys?.code || 'Reys'} — ${categoryTitle} bo'yicha ${savedEntries.length} ta karobka Excel hisoboti yuklab olinmoqda...`)}
             className="inline-flex items-center space-x-1 sm:space-x-1.5 rounded-xl bg-card border border-border px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-foreground hover:bg-accent transition-colors shadow-xs"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
@@ -173,7 +164,7 @@ export const ReysEntriesListPage: React.FC = () => {
           </button>
 
           <Link
-            to={`/reports/reys/${reys.id}/entry/${categoryId}`}
+            to={`/reports/reys/${reysId}/entry/${categoryId}`}
             className="inline-flex items-center space-x-1 sm:space-x-1.5 rounded-xl bg-emerald-500 px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-md shadow-emerald-500/25"
           >
             <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[3]" />
@@ -230,7 +221,7 @@ export const ReysEntriesListPage: React.FC = () => {
           </p>
           <div className="pt-2">
             <Link
-              to={`/reports/reys/${reys.id}/entry/${categoryId}`}
+              to={`/reports/reys/${reysId}/entry/${categoryId}`}
               className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-600 transition-all"
             >
               <Plus className="h-4 w-4" />

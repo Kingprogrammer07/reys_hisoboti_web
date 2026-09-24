@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus, ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, X, Trash2, RotateCcw, Clock, Filter, Sparkles, Scale, Check, Undo2 } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
 import { ReysCard } from "../../components/reports/ReysCard";
 import { ReysItem } from "../../types";
 import {
@@ -22,22 +21,11 @@ interface RecycledReysItem extends ReysItem {
 // ROUTE: /reports/reys
 export const ReysListPage: React.FC = () => {
   // Active Reys List
-  const [reysList, setReysList] = useState<ReysItem[]>(
-    MOCK_CARGOS.flatMap((c) => c.reyslar)
-  );
+  const [reysList, setReysList] = useState<ReysItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Recycle Bin (Savatcha) State
-  const [recycledList, setRecycledList] = useState<RecycledReysItem[]>([
-    {
-      id: 999,
-      code: "REYS-39",
-      toza_kg: 16500,
-      karobka_plus_kg: 18700,
-      date: "2026-08-01",
-      deletedAt: "2026-08-05",
-      daysRemaining: 28,
-    },
-  ]);
+  const [recycledList, setRecycledList] = useState<RecycledReysItem[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [binSearchQuery, setBinSearchQuery] = useState("");
@@ -96,7 +84,9 @@ export const ReysListPage: React.FC = () => {
         setReysList(res.items);
       }
     } catch (err) {
-      console.warn("Could not load reyslar from API, using fallback", err);
+      console.warn("Could not load reyslar from API", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -352,23 +342,51 @@ export const ReysListPage: React.FC = () => {
 
       {/* Reys Cards Grid */}
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {visibleReys.map((reys) => (
-            <ReysCard
-              key={reys.id}
-              reys={reys}
-              onEdit={(r) => {
-                setReysToEdit(r);
-                setEditReysCode(r.code);
-              }}
-              onDelete={(r) => {
-                setReysToDelete(r);
-                setConfirmDeleteInput("");
-              }}
-              onOptions={(r) => handleOpenOptions(r)}
-            />
-          ))}
-        </div>
+        {loading && reysList.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-3xl">
+            <RotateCcw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+            Reyslar ro'yxati yuklanmoqda...
+          </div>
+        ) : filteredReys.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-3xl space-y-3">
+            <Scale className="h-10 w-10 mx-auto text-muted-foreground/40" />
+            <h3 className="text-base font-semibold text-foreground">
+              {searchQuery ? "Reys topilmadi" : "Hozircha hech qanday reys mavjud emas"}
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {searchQuery
+                ? `"${searchQuery}" bo'yicha hech qanday reys topilmadi.`
+                : "Yangi reys yaratish uchun quyidagi tugmani bosing."}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-500 text-white font-semibold text-xs shadow-md hover:bg-teal-600 transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Yangi Reys Qo'shish</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {visibleReys.map((reys) => (
+              <ReysCard
+                key={reys.id}
+                reys={reys}
+                onEdit={(r) => {
+                  setReysToEdit(r);
+                  setEditReysCode(r.code);
+                }}
+                onDelete={(r) => {
+                  setReysToDelete(r);
+                  setConfirmDeleteInput("");
+                }}
+                onOptions={(r) => handleOpenOptions(r)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Collapse / Expand Toggle Button */}
         {hasMore && (

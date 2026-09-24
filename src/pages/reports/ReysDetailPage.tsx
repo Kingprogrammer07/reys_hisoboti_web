@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Scale, Truck, FileSpreadsheet, X, ChevronRight, ListOrdered } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
+import { ArrowLeft, Scale, Truck, FileSpreadsheet, X, ChevronRight, ListOrdered, AlertTriangle, RefreshCw } from "lucide-react";
 import { getReys } from "../../api";
 import { ReysItem } from "../../types";
 
@@ -10,19 +9,18 @@ export const ReysDetailPage: React.FC = () => {
   const { reysId } = useParams<{ reysId: string }>();
   const navigate = useNavigate();
 
-  // Find Reys details with API fallback
-  const [reys, setReys] = useState<ReysItem>(() => {
-    const allReys = MOCK_CARGOS.flatMap((c) => c.reyslar);
-    return allReys.find((r) => r.id === Number(reysId)) || allReys[0];
-  });
+  const [reys, setReys] = useState<ReysItem | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (reysId) {
+      setLoading(true);
       getReys(Number(reysId))
         .then((data) => {
           if (data) setReys(data);
         })
-        .catch((err) => console.warn("Could not fetch live reys details, using cached", err));
+        .catch((err) => console.warn("Could not fetch live reys details", err))
+        .finally(() => setLoading(false));
     }
   }, [reysId]);
 
@@ -40,6 +38,7 @@ export const ReysDetailPage: React.FC = () => {
 
   // Helper to get count of saved entries for each category
   const getCategoryStats = (catId: string) => {
+    if (!reys) return { count: 0, weight: 0 };
     try {
       const stored = localStorage.getItem(`mandarin_entries_${reys.id}_${catId}`);
       if (stored) {
@@ -52,8 +51,31 @@ export const ReysDetailPage: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return catId === "top" ? { count: 2, weight: 37.46 } : { count: 0, weight: 0 };
+    return { count: 0, weight: 0 };
   };
+
+  if (loading) {
+    return (
+      <div className="p-16 text-center text-muted-foreground border border-dashed border-border rounded-3xl my-8">
+        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+        Reys ma'lumotlari yuklanmoqda...
+      </div>
+    );
+  }
+
+  if (!reys) {
+    return (
+      <div className="p-16 text-center text-muted-foreground space-y-4 border border-dashed border-border rounded-3xl my-8">
+        <AlertTriangle className="h-10 w-10 mx-auto text-amber-400" />
+        <h2 className="text-lg font-bold text-foreground">Reys topilmadi</h2>
+        <p className="text-xs text-muted-foreground">Ushbu reys mavjud emas yoki o'chirilgan.</p>
+        <Link to="/reports/reys" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold">
+          <ArrowLeft className="h-4 w-4" />
+          <span>Reyslar ro'yxatiga qaytish</span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-20 md:pb-12 max-w-5xl mx-auto px-2 sm:px-4">

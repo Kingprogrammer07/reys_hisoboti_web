@@ -1,12 +1,32 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, Truck } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
+import { Package, Truck, RefreshCw } from "lucide-react";
+import { fetchCargos, fetchReyslar } from "../../api";
 import { BackupManagementCard } from "../../components/reports/BackupManagementCard";
 
 // ROUTE: /reports
 export const ReportsMenuPage: React.FC = () => {
-  const allReysCount = MOCK_CARGOS.flatMap((c) => c.reyslar).length;
+  const [cargoCount, setCargoCount] = useState<number>(0);
+  const [reysCount, setReysCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const loadCounts = async () => {
+    try {
+      setLoading(true);
+      const [cargosRes, reysRes] = await Promise.all([
+        fetchCargos().catch(() => ({ items: [], total: 0 })),
+        fetchReyslar().catch(() => ({ items: [], total: 0 })),
+      ]);
+      setCargoCount(cargosRes?.total ?? cargosRes?.items?.length ?? 0);
+      setReysCount(reysRes?.total ?? reysRes?.items?.length ?? 0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCounts();
+  }, []);
 
   return (
     <div className="space-y-6 pb-24 md:pb-12 max-w-5xl mx-auto">
@@ -29,7 +49,10 @@ export const ReportsMenuPage: React.FC = () => {
               <Package className="h-7 w-7" />
             </div>
             <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-              {MOCK_CARGOS.length} ta Kargo
+              {loading ? (
+                <RefreshCw className="h-3 w-3 animate-spin mr-1 text-emerald-400" />
+              ) : null}
+              {cargoCount} ta Kargo
             </span>
           </div>
           <div className="mt-6 space-y-2">
@@ -56,7 +79,10 @@ export const ReportsMenuPage: React.FC = () => {
               <Truck className="h-7 w-7" />
             </div>
             <span className="inline-flex items-center rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-400 border border-teal-500/20">
-              {allReysCount} ta Reys
+              {loading ? (
+                <RefreshCw className="h-3 w-3 animate-spin mr-1 text-teal-400" />
+              ) : null}
+              {reysCount} ta Reys
             </span>
           </div>
           <div className="mt-6 space-y-2">

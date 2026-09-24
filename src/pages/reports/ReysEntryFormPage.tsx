@@ -20,8 +20,7 @@ import {
   Trash2,
   Plus
 } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
-import { fetchEntries, createEntry, deleteEntry } from "../../api";
+import { fetchEntries, createEntry, deleteEntry, getReys } from "../../api";
 import { saveToOfflineQueue } from "../../utils/offlineQueue";
 
 export interface SavedEntryItem {
@@ -47,13 +46,22 @@ const CATEGORY_NAMES: Record<string, string> = {
 export const ReysEntryFormPage: React.FC = () => {
   const { reysId, categoryId = "top" } = useParams<{ reysId: string; categoryId: string }>();
 
-  // Find Reys details
-  const allReys = MOCK_CARGOS.flatMap((c) => c.reyslar);
-  const reys = allReys.find((r) => r.id === Number(reysId)) || allReys[0];
+  const [reys, setReys] = useState<{ id: number; code: string; custom_name?: string } | null>(null);
+
+  useEffect(() => {
+    if (reysId) {
+      getReys(Number(reysId))
+        .then((r) => {
+          if (r) setReys(r);
+        })
+        .catch(() => {});
+    }
+  }, [reysId]);
+
   const categoryTitle = CATEGORY_NAMES[categoryId] || "TOP";
 
   // Storage key for persisting uploaded entries across sessions
-  const storageKey = `mandarin_entries_${reys.id}_${categoryId}`;
+  const storageKey = `mandarin_entries_${reysId}_${categoryId}`;
 
   // Fast Mode State (Persisted in localStorage)
   const [isFastMode, setIsFastMode] = useState<boolean>(() => {
@@ -100,7 +108,7 @@ export const ReysEntryFormPage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Saved Entries List initialized from localStorage or defaults
+  // Saved Entries List initialized from localStorage or empty
   const [savedEntries, setSavedEntries] = useState<SavedEntryItem[]>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -108,26 +116,7 @@ export const ReysEntryFormPage: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return [
-      {
-        id: 101,
-        boxCode: "101",
-        grossWeight: 19.8,
-        tareWeight: 1.22,
-        netWeight: 18.58,
-        photoUrls: [],
-        createdAt: "10:15:20",
-      },
-      {
-        id: 102,
-        boxCode: "102",
-        grossWeight: 20.1,
-        tareWeight: 1.22,
-        netWeight: 18.88,
-        photoUrls: [],
-        createdAt: "10:16:05",
-      },
-    ];
+    return [];
   });
 
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -143,16 +132,16 @@ export const ReysEntryFormPage: React.FC = () => {
 
   // Load entries from Backend API on mount
   useEffect(() => {
-    if (reys?.id) {
-      fetchEntries(reys.id)
+    if (reysId) {
+      fetchEntries(Number(reysId))
         .then((res) => {
-          if (res && Array.isArray(res.items) && res.items.length > 0) {
+          if (res && Array.isArray(res.items)) {
             setSavedEntries(res.items);
           }
         })
-        .catch((err) => console.warn("Could not load live entries from API, using cached", err));
+        .catch((err) => console.warn("Could not load live entries from API", err));
     }
-  }, [reys?.id]);
+  }, [reysId]);
 
   // Compute Active Tare Weight Number
   const activeTareWeight: number = tareOption === "custom" 
@@ -423,7 +412,7 @@ export const ReysEntryFormPage: React.FC = () => {
       const photoBlobs = finalPhotos.map((p) => dataURLtoBlob(p));
       const res = await createEntry(
         {
-          reys_id: reys.id,
+          reys_id: Number(reysId),
           box_code: currentBoxCode,
           tovar_turi: categoryTitle,
           gross_weight: currentGross,
@@ -439,7 +428,7 @@ export const ReysEntryFormPage: React.FC = () => {
         const photoBlobs = finalPhotos.map((p) => dataURLtoBlob(p));
         await saveToOfflineQueue(
           {
-            reys_id: reys.id,
+            reys_id: Number(reysId),
             box_code: currentBoxCode,
             tovar_turi: categoryTitle,
             gross_weight: currentGross,
@@ -499,7 +488,7 @@ export const ReysEntryFormPage: React.FC = () => {
         
         {/* Left: Back Button */}
         <Link
-          to={`/reports/reys/${reys.id}`}
+          to={`/reports/reys/${reysId}`}
           className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-border bg-background text-foreground hover:bg-accent transition-colors shrink-0"
           title="Ortga qaytish"
         >
@@ -511,7 +500,7 @@ export const ReysEntryFormPage: React.FC = () => {
           <h1 className="text-sm sm:text-base md:text-lg font-extrabold text-foreground tracking-wide flex items-center justify-center space-x-1 sm:space-x-1.5 truncate">
             <span className="truncate">{categoryTitle}</span>
             <span className="text-[10px] sm:text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 font-mono shrink-0">
-              {reys.code}
+              {reys?.code || `REYS-${reysId}`}
             </span>
           </h1>
           <p className="text-[10px] text-muted-foreground truncate hidden xs:block">Kiritish formasi va tezkor qayd</p>
@@ -522,7 +511,7 @@ export const ReysEntryFormPage: React.FC = () => {
           
           {/* DEDICATED PAGE LINK FOR YUKLANGANLAR */}
           <Link
-            to={`/reports/reys/${reys.id}/entry/${categoryId}/list`}
+            to={`/reports/reys/${reysId}/entry/${categoryId}/list`}
             className="flex items-center space-x-1 px-2 py-1.5 sm:px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-[11px] sm:text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
             title="Yuklangan karobkalar ro'yxati sahifasiga o'tish"
           >

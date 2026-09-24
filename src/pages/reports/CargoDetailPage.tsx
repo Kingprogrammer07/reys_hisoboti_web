@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowLeft, FileSpreadsheet, Calendar, ListFilter, Check, X, Filter, RotateCcw, SlidersHorizontal } from "lucide-react";
-import { MOCK_CARGOS } from "../../mock/data";
+import { Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowLeft, FileSpreadsheet, Calendar, ListFilter, Check, X, Filter, RotateCcw, SlidersHorizontal, AlertTriangle, RefreshCw } from "lucide-react";
 import { ReysCard } from "../../components/reports/ReysCard";
 import { getCargo } from "../../api";
 import { CargoItem } from "../../types";
@@ -11,19 +10,8 @@ const formatDate = (d: Date) => d.toISOString().split("T")[0];
 // ROUTE: /reports/cargos/:cargoId
 export const CargoDetailPage: React.FC = () => {
   const { cargoId } = useParams<{ cargoId: string }>();
-  const [cargo, setCargo] = useState<CargoItem>(() => {
-    return MOCK_CARGOS.find((c) => c.id === Number(cargoId)) || MOCK_CARGOS[0];
-  });
-
-  useEffect(() => {
-    if (cargoId) {
-      getCargo(Number(cargoId))
-        .then((data) => {
-          if (data) setCargo(data);
-        })
-        .catch((err) => console.warn("Could not load cargo from API, using cached", err));
-    }
-  }, [cargoId]);
+  const [cargo, setCargo] = useState<CargoItem | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Search & Pagination States
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,14 +28,29 @@ export const CargoDetailPage: React.FC = () => {
   const [activeDateShortcut, setActiveDateShortcut] = useState<"all" | "today" | "yesterday" | "week" | "month" | "custom">("all");
 
   // Excel-Style Reys Multi-Select Checkbox Filter State
-  const [selectedReysCodes, setSelectedReysCodes] = useState<string[]>(
-    cargo.reyslar.map((r) => r.code)
-  );
+  const [selectedReysCodes, setSelectedReysCodes] = useState<string[]>([]);
   const [showReysCheckboxDropdown, setShowReysCheckboxDropdown] = useState(false);
   const [checkboxSearchQuery, setCheckboxSearchQuery] = useState("");
 
   // Excel Export Modal State
   const [showExcelExportModal, setShowExcelExportModal] = useState(false);
+
+  const cargoReyslar = cargo?.reyslar || [];
+
+  useEffect(() => {
+    if (cargoId) {
+      setLoading(true);
+      getCargo(Number(cargoId))
+        .then((data) => {
+          if (data) {
+            setCargo(data);
+            setSelectedReysCodes((data.reyslar || []).map((r) => r.code));
+          }
+        })
+        .catch((err) => console.warn("Could not load cargo from API", err))
+        .finally(() => setLoading(false));
+    }
+  }, [cargoId]);
 
   // Check if any filter is actively applied
   const isFilterActive = Boolean(
@@ -55,7 +58,7 @@ export const CargoDetailPage: React.FC = () => {
     endDate ||
     searchQuery ||
     activeDateShortcut !== "all" ||
-    selectedReysCodes.length !== cargo.reyslar.length
+    selectedReysCodes.length !== cargoReyslar.length
   );
 
   // Clear All Filters Handler
@@ -64,7 +67,7 @@ export const CargoDetailPage: React.FC = () => {
     setEndDate("");
     setActiveDateShortcut("all");
     setSearchQuery("");
-    setSelectedReysCodes(cargo.reyslar.map((r) => r.code));
+    setSelectedReysCodes(cargoReyslar.map((r) => r.code));
     setCheckboxSearchQuery("");
     setCurrentPage(1);
   };
@@ -113,22 +116,22 @@ export const CargoDetailPage: React.FC = () => {
 
   // Toggle All Checkboxes
   const toggleAllCheckboxes = () => {
-    if (selectedReysCodes.length === cargo.reyslar.length) {
+    if (selectedReysCodes.length === cargoReyslar.length) {
       setSelectedReysCodes([]);
     } else {
-      setSelectedReysCodes(cargo.reyslar.map((r) => r.code));
+      setSelectedReysCodes(cargoReyslar.map((r) => r.code));
     }
     setCurrentPage(1);
   };
 
   // Checkbox dropdown item search filter
-  const checkboxFilteredReys = cargo.reyslar.filter((r) =>
+  const checkboxFilteredReys = cargoReyslar.filter((r) =>
     r.code.toLowerCase().includes(checkboxSearchQuery.toLowerCase())
   );
 
   // Main Filter Logic: Date Range + Checkbox Filter + Main Search Bar
   const filteredReys = useMemo(() => {
-    return cargo.reyslar.filter((r) => {
+    return cargoReyslar.filter((r) => {
       // 1. Text Search matching
       const matchesSearch = r.code.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
@@ -143,7 +146,7 @@ export const CargoDetailPage: React.FC = () => {
 
       return true;
     });
-  }, [cargo.reyslar, searchQuery, selectedReysCodes, startDate, endDate]);
+  }, [cargoReyslar, searchQuery, selectedReysCodes, startDate, endDate]);
 
   // Aggregate metrics for filtered data
   const totalFilteredToza = useMemo(
@@ -175,7 +178,7 @@ export const CargoDetailPage: React.FC = () => {
     const dateRangeInfo = startDate || endDate ? `\nSana oralig'i: ${startDate || 'Boshidan'} — ${endDate || 'Hozirgacha'}` : "\nSana: Barcha davr";
 
     alert(
-      `📊 ${cargo.code} — FILTRLANGAN EXCEL HISOBOTI YUKLANMOQDA\n` +
+      `📊 ${cargo?.code || ''} — FILTRLANGAN EXCEL HISOBOTI YUKLANMOQDA\n` +
       `-----------------------------------------\n` +
       `• Filtrlangan reyslar soni: ${filteredReys.length} ta\n` +
       `• Tanlangan reyslar: ${reysCodesList}\n` +
@@ -185,6 +188,29 @@ export const CargoDetailPage: React.FC = () => {
     );
     setShowExcelExportModal(false);
   };
+
+  if (loading) {
+    return (
+      <div className="p-16 text-center text-muted-foreground border border-dashed border-border rounded-3xl my-8">
+        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+        Kargo ma'lumotlari yuklanmoqda...
+      </div>
+    );
+  }
+
+  if (!cargo) {
+    return (
+      <div className="p-16 text-center text-muted-foreground space-y-4 border border-dashed border-border rounded-3xl my-8">
+        <AlertTriangle className="h-10 w-10 mx-auto text-amber-400" />
+        <h2 className="text-lg font-bold text-foreground">Kargo topilmadi</h2>
+        <p className="text-xs text-muted-foreground">Ushbu kargo mavjud emas yoki o'chirilgan.</p>
+        <Link to="/reports/cargos" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold">
+          <ArrowLeft className="h-4 w-4" />
+          <span>Kargolar ro'yxatiga qaytish</span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-24 md:pb-12 max-w-5xl mx-auto">

@@ -1,4 +1,16 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000";
+export const getApiBaseUrl = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname || "127.0.0.1";
+    if (envUrl) {
+      return envUrl.replace("localhost", host);
+    }
+    return `http://${host}:8000`;
+  }
+  return envUrl || "http://127.0.0.1:8000";
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   status: number;

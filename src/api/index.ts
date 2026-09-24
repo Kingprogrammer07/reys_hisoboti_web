@@ -4,3 +4,5 @@ export * from "./reys";
 export * from "./entries";
 export * from "./bin";
 export * from "./backup";
+export * from "./dashboard";
+

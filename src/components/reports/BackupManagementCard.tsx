@@ -26,6 +26,10 @@ export const BackupManagementCard: React.FC = () => {
       setData(res);
     } catch (err: any) {
       console.error("Zaxira ma'lumotlarini yuklashda xatolik:", err);
+      setMessage({
+        type: "error",
+        text: "Serverga ulanishda xatolik: " + (err?.message || "Server bilan aloqa o'rnatilmadi"),
+      });
     } finally {
       setLoading(false);
     }
@@ -155,8 +159,24 @@ export const BackupManagementCard: React.FC = () => {
             <Database className="h-3.5 w-3.5 text-cyan-400" />
             <span>Baza turi</span>
           </div>
-          <div className="mt-1 font-semibold text-sm text-foreground">
-            {data?.stats?.backend === "postgres" ? "Neon PostgreSQL" : "Lokal SQLite"}
+          <div className="mt-1 font-semibold text-sm flex items-center gap-1.5">
+            {loading && !data ? (
+              <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" /> Tekshirilmoqda...
+              </span>
+            ) : data?.stats?.backend === "postgres" ? (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                Neon PostgreSQL
+              </span>
+            ) : data?.stats?.backend === "sqlite" ? (
+              <span className="text-amber-400 font-semibold flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                Lokal SQLite (Standby)
+              </span>
+            ) : (
+              <span className="text-red-400 font-semibold text-xs">Baza holati noma'lum</span>
+            )}
           </div>
         </div>
 
