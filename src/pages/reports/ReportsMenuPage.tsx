@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Package, Truck } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
+import { BackupManagementCard } from "../../components/reports/BackupManagementCard";
 
 // ROUTE: /reports
 export const ReportsMenuPage: React.FC = () => {
@@ -11,11 +12,11 @@ export const ReportsMenuPage: React.FC = () => {
     <div className="space-y-6 pb-24 md:pb-12 max-w-5xl mx-auto">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Hisobotlar Bo'limi</h1>
-        <p className="text-xs text-muted-foreground">Hisobot turini tanlang (URL path barcha sahifalar uchun aniq belgilangan)</p>
+        <p className="text-xs text-muted-foreground">Hisobot turini tanlang yoki ma'lumotlar bazasini zaxiralang</p>
       </div>
 
       {/* 2 MAIN CARDS WITH EXPLICIT ROUTES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
         
         {/* Card 1: Kargolar Hisoboti -> Route /reports/cargos */}
         <Link
@@ -71,6 +72,11 @@ export const ReportsMenuPage: React.FC = () => {
           </div>
         </Link>
 
+      </div>
+
+      {/* Card 3: Ma'lumotlar xavfsizligi va Zaxiralash (Backup) */}
+      <div className="pt-4">
+        <BackupManagementCard />
       </div>
     </div>
   );
