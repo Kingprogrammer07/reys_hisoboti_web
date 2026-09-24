@@ -14,10 +14,13 @@ import { ReysEntryFormPage } from "./pages/reports/ReysEntryFormPage";
 import { ReysEntriesListPage } from "./pages/reports/ReysEntriesListPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { LoginPage } from "./pages/LoginPage";
+import { RecycleBinPage } from "./pages/reports/RecycleBinPage";
+import { ReysDistributionFormPage } from "./pages/reports/ReysDistributionFormPage";
+import { ReysDistributionListPage } from "./pages/reports/ReysDistributionListPage";
 
 const AppContent: React.FC = () => {
   const location = useLocation();
-  const isEntryPage = location.pathname.includes("/entry");
+  const isEntryPage = location.pathname.includes("/entry") || location.pathname.includes("/distribute");
   const isLoginPage = location.pathname === "/login";
 
   return (
@@ -100,10 +103,34 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
+            path="/reports/reys/:reysId/distribute"
+            element={
+              <ProtectedRoute>
+                <ReysDistributionFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/reys/:reysId/distribute/list"
+            element={
+              <ProtectedRoute>
+                <ReysDistributionListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/activity"
             element={
               <ProtectedRoute>
                 <ActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bin"
+            element={
+              <ProtectedRoute>
+                <RecycleBinPage />
               </ProtectedRoute>
             }
           />

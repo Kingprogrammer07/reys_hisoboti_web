@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Scale, Truck, FileSpreadsheet, X, ChevronRight, ListOrdered, AlertTriangle, RefreshCw } from "lucide-react";
-import { getReys } from "../../api";
+import { getReys, downloadFile } from "../../api";
 import { ReysItem } from "../../types";
 
 // ROUTE: /reports/reys/:reysId
@@ -132,18 +132,24 @@ export const ReysDetailPage: React.FC = () => {
           {/* Dedicated Excel Button */}
           <div className="pt-2" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setShowObshiyVesModal(true)}
+              onClick={async () => {
+                try {
+                  await downloadFile(`/api/export/obshiy?report_id=${reys.id}`, `${reys.code}_OBSHIY_VES.xlsx`);
+                } catch (err: any) {
+                  alert(`Excel yuklashda xatolik: ${err?.message || "Xato yuz berdi"}`);
+                }
+              }}
               className="w-full flex items-center justify-center space-x-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 py-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-98"
             >
               <FileSpreadsheet className="h-4 w-4" />
-              <span>Excel</span>
+              <span>Excel yuklab olish</span>
             </button>
           </div>
         </div>
 
         {/* CARD 2: KARGOLARGA TARQATISH */}
         <div
-          onClick={() => alert(`${reys.code} — Kargolarga tarqatish tanlandi`)}
+          onClick={() => navigate(`/reports/reys/${reys.id}/distribute`)}
           className="group cursor-pointer relative overflow-hidden rounded-3xl border border-white/10 bg-card p-8 text-left shadow-xl transition-all duration-300 hover:border-teal-500/50 hover:shadow-2xl hover:shadow-teal-500/10 active:scale-98 glass-panel space-y-6 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
@@ -160,18 +166,24 @@ export const ReysDetailPage: React.FC = () => {
               Kargolarga tarqatish
             </h2>
             <p className="text-xs text-muted-foreground">
-              Ushbu reysdan kargolar bo'yicha tarqatilgan yuklar
+              Ushbu reysdan kargolar bo'yicha tarqatilgan yuklar (forma va adashgan yuklar)
             </p>
           </div>
 
           {/* Dedicated Excel Button */}
           <div className="pt-2" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => alert(`${reys.code} — Kargolarga tarqatish Excel hisoboti yuklab olinmoqda...`)}
+              onClick={async () => {
+                try {
+                  await downloadFile(`/api/export/kargo?report_id=${reys.id}`, `${reys.code}_KARGOLARGA_TARQATISH.xlsx`);
+                } catch (err: any) {
+                  alert(`Excel yuklashda xatolik: ${err?.message || "Xato yuz berdi"}`);
+                }
+              }}
               className="w-full flex items-center justify-center space-x-2 rounded-2xl bg-teal-500/10 border border-teal-500/20 py-3 text-xs font-bold text-teal-400 hover:bg-teal-500 hover:text-white transition-all shadow-sm active:scale-98"
             >
               <FileSpreadsheet className="h-4 w-4" />
-              <span>Excel</span>
+              <span>Excel yuklab olish</span>
             </button>
           </div>
         </div>
@@ -234,7 +246,16 @@ export const ReysDetailPage: React.FC = () => {
                     <div onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
-                        onClick={() => alert(`${reys.code} — ${cat.label} Excel hisoboti yuklab olinmoqda...`)}
+                        onClick={async () => {
+                          try {
+                            const path = cat.id === "umumiy_hisobot" 
+                              ? `/api/export/summary?report_id=${reys.id}`
+                              : `/api/export/obshiy?report_id=${reys.id}`;
+                            await downloadFile(path, `${reys.code}_${cat.label.toUpperCase()}.xlsx`);
+                          } catch (err: any) {
+                            alert(`Excel yuklashda xatolik: ${err?.message || "Xato yuz berdi"}`);
+                          }
+                        }}
                         className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 shadow-sm"
                       >
                         <FileSpreadsheet className="h-3.5 w-3.5" />

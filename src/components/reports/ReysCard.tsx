@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { FileSpreadsheet, Edit2, Trash2, ChevronRight, MoreVertical, Sparkles, Scale } from "lucide-react";
 import { ReysItem } from "../../types";
+import { downloadFile } from "../../api";
 
 interface ReysCardProps {
   reys: ReysItem;
@@ -99,11 +100,17 @@ export const ReysCard: React.FC<ReysCardProps> = ({ reys, onEdit, onDelete, onOp
       {/* Footer: Excel Button */}
       <div className="p-3 border-t border-border/80 bg-muted/10 text-center" onClick={(e) => e.stopPropagation()}>
         <button
-          onClick={() => alert(`${reys.code} uchun Excel hisoboti yuklab olinmoqda...`)}
-          className="w-full flex items-center justify-center space-x-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all active:scale-98"
+          onClick={async () => {
+            try {
+              await downloadFile(`/api/export/summary?report_id=${reys.id}`, `${reys.code}_UMUMIY_HISOBOT.xlsx`);
+            } catch (err: any) {
+              alert(`Excel yuklab olishda xatolik: ${err?.message || "Xatolik yuz berdi"}`);
+            }
+          }}
+          className="w-full flex items-center justify-center space-x-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all active:scale-98 shadow-sm"
         >
           <FileSpreadsheet className="h-4 w-4" />
-          <span>Excel</span>
+          <span>Excel yuklab olish</span>
         </button>
       </div>
     </div>

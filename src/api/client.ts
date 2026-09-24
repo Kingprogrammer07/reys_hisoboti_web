@@ -86,3 +86,49 @@ export async function request<T = any>(
   }
   return response.text() as any;
 }
+
+export async function downloadFile(path: string, defaultFilename: string = "hisobot.xlsx"): Promise<void> {
+  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const headers = new Headers();
+  const token = typeof window !== "undefined" ? localStorage.getItem("reys_token") : null;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    let msg = "Faylni yuklab bo'lmadi";
+    try {
+      const err = await res.json();
+      if (err?.detail) msg = err.detail;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  // Extract filename from Content-Disposition if present
+  let filename = defaultFilename;
+  const disp = res.headers.get("content-disposition");
+  if (disp) {
+    const match = disp.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    if (match && match[1]) {
+      try {
+        filename = decodeURIComponent(match[1]);
+      } catch {
+        filename = match[1];
+      }
+    }
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}

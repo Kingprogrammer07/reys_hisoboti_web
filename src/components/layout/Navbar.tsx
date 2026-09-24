@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { NetworkStatusBadge } from "./NetworkStatusBadge";
-import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet, User, LogOut } from "lucide-react";
+import { LayoutDashboard, Truck, History, ShieldCheck, Sun, Moon, FileSpreadsheet, User, LogOut, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export const Navbar: React.FC = () => {
@@ -44,6 +44,7 @@ export const Navbar: React.FC = () => {
     { label: "Boshqaruv", path: "/", icon: LayoutDashboard },
     { label: "Hisobotlar", path: "/reports", icon: Truck },
     { label: "Faollik", path: "/activity", icon: History },
+    { label: "Savatcha", path: "/bin", icon: Trash2 },
   ];
 
   return (

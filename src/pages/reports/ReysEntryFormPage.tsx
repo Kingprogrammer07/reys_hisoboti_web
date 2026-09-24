@@ -1017,11 +1017,11 @@ export const ReysEntryFormPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCapturePhoto(true)}
-                className="relative flex h-18 w-18 sm:h-20 sm:w-20 items-center justify-center rounded-full border-4 border-white bg-transparent p-1 active:scale-90 transition-transform"
+                className="relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border-4 sm:border-[5px] border-white/95 bg-white/10 backdrop-blur-md p-1.5 active:scale-90 transition-transform shadow-2xl shadow-black/80"
                 title="Kadr olish (bir nechta olish mumkin)"
               >
-                <div className="h-full w-full rounded-full bg-emerald-500 active:bg-emerald-400 shadow-xl shadow-emerald-500/40 flex items-center justify-center text-white font-bold font-mono text-xs">
-                  {capturedPhotos.length > 0 ? `+1` : ""}
+                <div className="h-full w-full rounded-full bg-emerald-500 active:bg-emerald-400 shadow-lg shadow-emerald-500/60 flex items-center justify-center text-white font-black font-mono text-sm sm:text-base border-2 border-white/30">
+                  {capturedPhotos.length > 0 ? `+${capturedPhotos.length + 1}` : ""}
                 </div>
               </button>
 

@@ -10,6 +10,7 @@ import {
   restoreCargo,
   fetchBinItems,
   restoreBinItem,
+  downloadFile,
 } from "../../api";
 
 interface RecycledCargoItem extends CargoItem {
@@ -252,9 +253,14 @@ export const CargoListPage: React.FC = () => {
   };
 
   // Execute Excel Download with Date Range
-  const handleDownloadExcelWithDate = () => {
-    alert(`Kargolar hisoboti Excel fayli yuklab olinmoqda...\nMuddat: ${startDate} dan ${endDate} gacha`);
-    setShowExcelDateModal(false);
+  const handleDownloadExcelWithDate = async () => {
+    try {
+      await downloadFile(`/api/export/kargo?start=${startDate}&end=${endDate}`, `KARGOLAR_${startDate}_${endDate}.xlsx`);
+    } catch (err: any) {
+      alert(`Excel yuklab olishda xatolik: ${err?.message || "Xatolik yuz berdi"}`);
+    } finally {
+      setShowExcelDateModal(false);
+    }
   };
 
   return (

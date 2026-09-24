@@ -141,6 +141,21 @@ export async function removeOfflineEntry(localId: string): Promise<void> {
 
 let _isSyncing = false;
 
+export async function clearAllOfflineEntries(): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export async function syncOfflineQueue(
   onSuccessOne?: (localId: string) => void
 ): Promise<{ synced: number; failed: number }> {
@@ -170,11 +185,19 @@ export async function syncOfflineQueue(
         await removeOfflineEntry(record.localId);
         synced++;
         if (onSuccessOne) onSuccessOne(record.localId);
-      } catch (err) {
+      } catch (err: any) {
         console.warn(`Offline entry ${record.localId} sync failed:`, err);
         failed++;
-        // If network error occurred, break early
-        if (!navigator.onLine) break;
+
+        // If it's a 4xx client/validation error, retry will never succeed.
+        // Increment retryCount or discard after 3 attempts so queue isn't permanently locked
+        const status = err?.status || (err?.response && err.response.status);
+        if (status && status >= 400 && status < 500) {
+          console.error(`Oflayn yozuv xato tufayli o'chirildi (${status}):`, err);
+          await removeOfflineEntry(record.localId);
+        } else if (!navigator.onLine) {
+          break;
+        }
       }
     }
   } finally {

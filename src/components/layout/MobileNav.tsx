@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Truck, History } from "lucide-react";
+import { LayoutDashboard, Truck, History, Trash2 } from "lucide-react";
 
 export const MobileNav: React.FC = () => {
   const location = useLocation();
@@ -36,9 +36,10 @@ export const MobileNav: React.FC = () => {
   }
 
   const navItems = [
-    { label: "Bosh sahifa", path: "/", icon: LayoutDashboard },
-    { label: "Reyslar", path: "/reports", icon: Truck },
+    { label: "Boshqaruv", path: "/", icon: LayoutDashboard },
+    { label: "Hisobotlar", path: "/reports", icon: Truck },
     { label: "Faollik", path: "/activity", icon: History },
+    { label: "Savatcha", path: "/bin", icon: Trash2 },
   ];
 
   return (

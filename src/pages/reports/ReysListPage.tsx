@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, X, Trash2, RotateCcw, Clock, Filter, Sparkles, Scale, Check, Undo2 } from "lucide-react";
+import { Search, Plus, ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, X, Trash2, RotateCcw, Clock, Filter, Sparkles, Scale, Check, Undo2, FileSpreadsheet, Calendar } from "lucide-react";
 import { ReysCard } from "../../components/reports/ReysCard";
 import { ReysItem } from "../../types";
 import {
@@ -11,6 +11,7 @@ import {
   restoreReys,
   adjustReys,
   fetchBinItems,
+  downloadFile,
 } from "../../api";
 
 interface RecycledReysItem extends ReysItem {
@@ -56,11 +57,37 @@ export const ReysListPage: React.FC = () => {
   const [customNameInput, setCustomNameInput] = useState("");
   const [targetWeightInput, setTargetWeightInput] = useState("");
 
-  // Search filter active reys
-  const filteredReys = reysList.filter((r) =>
-    r.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (r.custom_name && r.custom_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Date Filter State
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday" | "week" | "month">("all");
+
+  // Search and Date filter active reys
+  const filteredReys = reysList.filter((r) => {
+    const matchesSearch =
+      r.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.custom_name && r.custom_name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (!matchesSearch) return false;
+
+    if (dateFilter === "all" || !r.date) return true;
+    const reysDate = new Date(r.date);
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+
+    if (dateFilter === "today") return r.date === todayStr;
+    if (dateFilter === "yesterday") {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      return r.date === y.toISOString().split("T")[0];
+    }
+    if (dateFilter === "week") {
+      const diffDays = (now.getTime() - reysDate.getTime()) / (1000 * 3600 * 24);
+      return diffDays <= 7;
+    }
+    if (dateFilter === "month") {
+      const diffDays = (now.getTime() - reysDate.getTime()) / (1000 * 3600 * 24);
+      return diffDays <= 30;
+    }
+    return true;
+  });
 
   // Search filter recycled reys inside modal
   const filteredRecycledList = recycledList.filter((r) =>
@@ -320,17 +347,63 @@ export const ReysListPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Recycle Bin (Savatcha) Button */}
-        <button
-          onClick={() => setShowRecycleBinModal(true)}
-          className="flex items-center space-x-1.5 rounded-xl border border-border bg-card px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 transition-all shadow-xs shrink-0"
-        >
-          <Trash2 className="h-3.5 w-3.5 text-amber-400" />
-          <span className="hidden xs:inline">Savatcha</span>
-          <span className="font-mono font-bold">({recycledList.length})</span>
-        </button>
+        {/* Actions: Excel & Savatcha */}
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await downloadFile(`/api/export/summary`, `BARCHA_REYSLAR_HISOBOTI.xlsx`);
+              } catch (err: any) {
+                alert(`Excel yuklab olishda xatolik: ${err?.message || "Xatolik yuz berdi"}`);
+              }
+            }}
+            className="flex items-center space-x-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-teal-400 hover:bg-teal-500 hover:text-white transition-all shadow-xs shrink-0"
+            title="Barcha reyslar Excel hisobotini yuklab olish"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span className="hidden xs:inline">Excel</span>
+          </button>
+
+          {/* Recycle Bin (Savatcha) Button */}
+          <button
+            type="button"
+            onClick={() => setShowRecycleBinModal(true)}
+            className="flex items-center space-x-1.5 rounded-xl border border-border bg-card px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 transition-all shadow-xs shrink-0"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden xs:inline">Savatcha</span>
+            <span className="font-mono font-bold">({recycledList.length})</span>
+          </button>
+        </div>
       </div>
 
+      {/* Date Filter Shortcuts Toolbar */}
+      <div className="flex items-center space-x-1.5 p-1 rounded-2xl bg-muted/60 border border-border/80 overflow-x-auto scrollbar-none">
+        {[
+          { id: "all", label: "Barchasi" },
+          { id: "today", label: "Bugun" },
+          { id: "yesterday", label: "Kecha" },
+          { id: "week", label: "Shu hafta" },
+          { id: "month", label: "Shu oy" },
+        ].map((df) => (
+          <button
+            key={df.id}
+            type="button"
+            onClick={() => {
+              setDateFilter(df.id as any);
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              dateFilter === df.id
+                ? "bg-card text-teal-400 shadow-sm border border-teal-500/30"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {df.label}
+          </button>
+        ))}
+      </div>
 
       {/* Search Input */}
       <div className="relative">
