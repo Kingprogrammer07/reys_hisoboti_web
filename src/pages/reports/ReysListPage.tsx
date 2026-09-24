@@ -21,8 +21,14 @@ interface RecycledReysItem extends ReysItem {
 // ROUTE: /reports/reys
 export const ReysListPage: React.FC = () => {
   // Active Reys List
-  const [reysList, setReysList] = useState<ReysItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reysList, setReysList] = useState<ReysItem[]>(() => {
+    try {
+      const cached = sessionStorage.getItem("reyslar_cache");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => !sessionStorage.getItem("reyslar_cache"));
 
   // Recycle Bin (Savatcha) State
   const [recycledList, setRecycledList] = useState<RecycledReysItem[]>([]);
@@ -82,6 +88,7 @@ export const ReysListPage: React.FC = () => {
       const res = await fetchReyslar();
       if (res && Array.isArray(res.items)) {
         setReysList(res.items);
+        sessionStorage.setItem("reyslar_cache", JSON.stringify(res.items));
       }
     } catch (err) {
       console.warn("Could not load reyslar from API", err);

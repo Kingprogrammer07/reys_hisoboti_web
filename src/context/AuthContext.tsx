@@ -23,11 +23,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return !!localStorage.getItem("reys_token");
   });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !localStorage.getItem("reys_token");
+  });
 
   const checkAuth = async () => {
     try {
-      setIsLoading(true);
+      // Only set loading if no cached token exists
+      if (!localStorage.getItem("reys_token")) {
+        setIsLoading(true);
+      }
       const res = await authApi.getMe();
       if (res.authenticated && res.user) {
         setUser({ username: res.user });

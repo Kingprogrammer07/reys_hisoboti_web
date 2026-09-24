@@ -4,14 +4,23 @@ import { dashboardApi, DashboardStatsResponse } from "../api";
 import { Truck, Scale, PackageCheck, ArrowUpRight, Plus, CheckCircle2, Clock, Inbox, RefreshCw } from "lucide-react";
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStatsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchStats = async () => {
+  const [stats, setStats] = useState<DashboardStatsResponse | null>(() => {
     try {
-      setLoading(true);
+      const cached = sessionStorage.getItem("dashboard_stats_cache");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => !sessionStorage.getItem("dashboard_stats_cache"));
+
+  const fetchStats = async (isManual = false) => {
+    try {
+      if (isManual || !stats) {
+        setLoading(true);
+      }
       const res = await dashboardApi.getStats();
       setStats(res);
+      sessionStorage.setItem("dashboard_stats_cache", JSON.stringify(res));
     } catch (err) {
       console.warn("Dashboard statistikasini yuklashda xatolik:", err);
     } finally {
@@ -39,7 +48,7 @@ export const DashboardPage: React.FC = () => {
           <p className="text-xs text-muted-foreground">Mandarin hisobot tizimi umumiy statistikasi</p>
         </div>
         <button
-          onClick={fetchStats}
+          onClick={() => fetchStats(true)}
           disabled={loading}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 hover:bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-colors shadow-sm"
         >

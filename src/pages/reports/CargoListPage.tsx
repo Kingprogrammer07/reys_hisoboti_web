@@ -23,8 +23,14 @@ const formatDate = (d: Date) => d.toISOString().split("T")[0];
 // ROUTE: /reports/cargos
 export const CargoListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [cargoList, setCargoList] = useState<CargoItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cargoList, setCargoList] = useState<CargoItem[]>(() => {
+    try {
+      const cached = sessionStorage.getItem("cargos_cache");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => !sessionStorage.getItem("cargos_cache"));
 
   // Recycle Bin State
   const [recycledCargos, setRecycledCargos] = useState<RecycledCargoItem[]>([]);
@@ -105,6 +111,7 @@ export const CargoListPage: React.FC = () => {
       const res = await fetchCargos();
       if (res && Array.isArray(res.items)) {
         setCargoList(res.items);
+        sessionStorage.setItem("cargos_cache", JSON.stringify(res.items));
       }
     } catch (err) {
       console.warn("Could not load cargos from API", err);
