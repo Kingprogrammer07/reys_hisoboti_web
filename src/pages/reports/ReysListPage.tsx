@@ -1,9 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus, ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, X, Trash2, RotateCcw, Clock, Filter, Sparkles, Scale, Check, Undo2 } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
 import { ReysCard } from "../../components/reports/ReysCard";
 import { ReysItem } from "../../types";
+import {
+  fetchReyslar,
+  createReys,
+  updateReys,
+  deleteReys,
+  restoreReys,
+  adjustReys,
+  fetchBinItems,
+} from "../../api";
 
 interface RecycledReysItem extends ReysItem {
   deletedAt: string;
@@ -74,6 +83,45 @@ export const ReysListPage: React.FC = () => {
   const visibleReys = isExpanded ? paginatedReys : filteredReys.slice(0, 3);
   const hasMore = filteredReys.length > 3;
 
+  // Load Reyslar and Recycle Bin from API on mount
+  useEffect(() => {
+    loadReyslar();
+    loadBinItems();
+  }, []);
+
+  const loadReyslar = async () => {
+    try {
+      const res = await fetchReyslar();
+      if (res && Array.isArray(res.items)) {
+        setReysList(res.items);
+      }
+    } catch (err) {
+      console.warn("Could not load reyslar from API, using fallback", err);
+    }
+  };
+
+  const loadBinItems = async () => {
+    try {
+      const res = await fetchBinItems();
+      if (res && Array.isArray(res.items)) {
+        const reysBinItems: RecycledReysItem[] = res.items
+          .filter((i: any) => i.entity_type === "reys")
+          .map((i: any) => ({
+            id: i.entity_id,
+            code: i.title.replace(/^Reys:\s*/i, ""),
+            toza_kg: 0,
+            karobka_plus_kg: 0,
+            date: new Date().toISOString().split("T")[0],
+            deletedAt: new Date(i.deleted_at * 1000).toISOString().split("T")[0],
+            daysRemaining: i.days_remaining,
+          }));
+        setRecycledList(reysBinItems);
+      }
+    } catch (err) {
+      console.warn("Could not load bin items from API", err);
+    }
+  };
+
   // Open 3-Dot Options Modal
   const handleOpenOptions = (reys: ReysItem) => {
     setReysForOptions(reys);
@@ -83,12 +131,18 @@ export const ReysListPage: React.FC = () => {
   };
 
   // Save Custom Reys Name
-  const handleSaveCustomName = () => {
+  const handleSaveCustomName = async () => {
     if (reysForOptions) {
+      const customName = customNameInput.trim() || undefined;
+      try {
+        await updateReys(reysForOptions.id, { custom_name: customName });
+      } catch (err) {
+        console.warn("API error updating custom name", err);
+      }
       setReysList(
         reysList.map((r) =>
           r.id === reysForOptions.id
-            ? { ...r, custom_name: customNameInput.trim() || undefined }
+            ? { ...r, custom_name: customName }
             : r
         )
       );
@@ -97,7 +151,7 @@ export const ReysListPage: React.FC = () => {
   };
 
   // Apply Weight Adjustment (Yuk og'irligini moslash)
-  const handleApplyWeightAdjustment = () => {
+  const handleApplyWeightAdjustment = async () => {
     if (reysForOptions && targetWeightInput) {
       const targetWeight = Number(targetWeightInput);
       if (!isNaN(targetWeight) && targetWeight >= 0) {
@@ -106,98 +160,133 @@ export const ReysListPage: React.FC = () => {
         const diff = targetWeight - reysForOptions.toza_kg;
         const newKarobka = Math.max(0, reysForOptions.karobka_plus_kg + diff);
 
-        setReysList(
-          reysList.map((r) =>
-            r.id === reysForOptions.id
-              ? {
-                  ...r,
-                  toza_kg: targetWeight,
-                  karobka_plus_kg: newKarobka,
-                  original_toza_kg: originalToza,
-                  original_karobka_plus_kg: originalKarobka,
-                  adjustment_diff_kg: targetWeight - originalToza,
-                }
-              : r
-          )
-        );
+        try {
+          const adjusted = await adjustReys(reysForOptions.id, targetWeight, newKarobka);
+          setReysList(reysList.map((r) => (r.id === reysForOptions.id ? adjusted : r)));
+        } catch (err) {
+          setReysList(
+            reysList.map((r) =>
+              r.id === reysForOptions.id
+                ? {
+                    ...r,
+                    toza_kg: targetWeight,
+                    karobka_plus_kg: newKarobka,
+                    original_toza_kg: originalToza,
+                    original_karobka_plus_kg: originalKarobka,
+                    adjustment_diff_kg: targetWeight - originalToza,
+                  }
+                : r
+            )
+          );
+        }
         setReysForOptions(null);
       }
     }
   };
 
   // Revert / Rollback Weight Adjustment (Asliga / Orqaga qaytarish)
-  const handleRevertWeightAdjustment = () => {
+  const handleRevertWeightAdjustment = async () => {
     if (reysForOptions && reysForOptions.original_toza_kg !== undefined) {
-      setReysList(
-        reysList.map((r) =>
-          r.id === reysForOptions.id
-            ? {
-                ...r,
-                toza_kg: reysForOptions.original_toza_kg!,
-                karobka_plus_kg: reysForOptions.original_karobka_plus_kg ?? r.karobka_plus_kg,
-                adjustment_diff_kg: undefined,
-                original_toza_kg: undefined,
-                original_karobka_plus_kg: undefined,
-              }
-            : r
-        )
-      );
+      const origToza = reysForOptions.original_toza_kg;
+      const origKarobka = reysForOptions.original_karobka_plus_kg ?? 0;
+      try {
+        const adjusted = await adjustReys(reysForOptions.id, origToza, origKarobka);
+        setReysList(reysList.map((r) => (r.id === reysForOptions.id ? adjusted : r)));
+      } catch (err) {
+        setReysList(
+          reysList.map((r) =>
+            r.id === reysForOptions.id
+              ? {
+                  ...r,
+                  toza_kg: origToza,
+                  karobka_plus_kg: origKarobka,
+                  adjustment_diff_kg: undefined,
+                  original_toza_kg: undefined,
+                  original_karobka_plus_kg: undefined,
+                }
+              : r
+          )
+        );
+      }
       setReysForOptions(null);
     }
   };
 
   // Add Handler — ONLY REYS CODE IS ENTERED
-  const handleAddReys = () => {
+  const handleAddReys = async () => {
     if (newReysCode.trim()) {
-      const newReys: ReysItem = {
-        id: Date.now(),
-        code: newReysCode.toUpperCase().trim(),
-        toza_kg: 0,
-        karobka_plus_kg: 0,
-        date: new Date().toISOString().split("T")[0],
-      };
-      setReysList([newReys, ...reysList]);
+      const code = newReysCode.toUpperCase().trim();
+      const date = new Date().toISOString().split("T")[0];
+      try {
+        const created = await createReys({ code, date });
+        setReysList([created, ...reysList]);
+      } catch (err) {
+        const newReys: ReysItem = {
+          id: Date.now(),
+          code,
+          toza_kg: 0,
+          karobka_plus_kg: 0,
+          date,
+        };
+        setReysList([newReys, ...reysList]);
+      }
       setNewReysCode("");
       setShowAddModal(false);
     }
   };
 
   // Edit Handler — REYS CODE ONLY
-  const handleEditReys = () => {
+  const handleEditReys = async () => {
     if (reysToEdit && editReysCode.trim()) {
-      setReysList(
-        reysList.map((r) =>
-          r.id === reysToEdit.id
-            ? { ...r, code: editReysCode.toUpperCase().trim() }
-            : r
-        )
-      );
+      const code = editReysCode.toUpperCase().trim();
+      try {
+        const updated = await updateReys(reysToEdit.id, { code });
+        setReysList(reysList.map((r) => (r.id === reysToEdit.id ? updated : r)));
+      } catch (err) {
+        setReysList(
+          reysList.map((r) =>
+            r.id === reysToEdit.id ? { ...r, code } : r
+          )
+        );
+      }
       setReysToEdit(null);
     }
   };
 
   // Soft Delete Handler
-  const handleSoftDeleteReys = () => {
+  const handleSoftDeleteReys = async () => {
     if (reysToDelete && confirmDeleteInput.trim().toUpperCase() === reysToDelete.code) {
-      const itemToRecycle: RecycledReysItem = {
-        ...reysToDelete,
-        deletedAt: new Date().toISOString().split("T")[0],
-        daysRemaining: 30,
-      };
-      setRecycledList([itemToRecycle, ...recycledList]);
-      setReysList(reysList.filter((r) => r.id !== reysToDelete.id));
+      try {
+        await deleteReys(reysToDelete.id);
+        await loadReyslar();
+        await loadBinItems();
+      } catch (err) {
+        const itemToRecycle: RecycledReysItem = {
+          ...reysToDelete,
+          deletedAt: new Date().toISOString().split("T")[0],
+          daysRemaining: 30,
+        };
+        setRecycledList([itemToRecycle, ...recycledList]);
+        setReysList(reysList.filter((r) => r.id !== reysToDelete.id));
+      }
       setReysToDelete(null);
       setConfirmDeleteInput("");
     }
   };
 
   // Restore Handler
-  const handleRestoreReys = (id: number) => {
-    const itemToRestore = recycledList.find((r) => r.id === id);
-    if (itemToRestore) {
-      const { deletedAt, daysRemaining, ...restoredReys } = itemToRestore;
-      setReysList([restoredReys, ...reysList]);
-      setRecycledList(recycledList.filter((r) => r.id !== id));
+  const handleRestoreReys = async (id: number) => {
+    try {
+      await restoreReys(id);
+      await loadReyslar();
+      await loadBinItems();
+    } catch (err) {
+      const itemToRestore = recycledList.find((r) => r.id === id);
+      if (itemToRestore) {
+        const { deletedAt, daysRemaining, ...restoredReys } = itemToRestore;
+        setReysList([restoredReys, ...reysList]);
+        setRecycledList(recycledList.filter((r) => r.id !== id));
+      }
     }
   };
 

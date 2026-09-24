@@ -21,6 +21,7 @@ import {
   Plus
 } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
+import { fetchEntries, createEntry, deleteEntry } from "../../api";
 
 export interface SavedEntryItem {
   id: number;
@@ -138,6 +139,19 @@ export const ReysEntryFormPage: React.FC = () => {
       console.error(e);
     }
   }, [savedEntries, storageKey]);
+
+  // Load entries from Backend API on mount
+  useEffect(() => {
+    if (reys?.id) {
+      fetchEntries(reys.id)
+        .then((res) => {
+          if (res && Array.isArray(res.items) && res.items.length > 0) {
+            setSavedEntries(res.items);
+          }
+        })
+        .catch((err) => console.warn("Could not load live entries from API, using cached", err));
+    }
+  }, [reys?.id]);
 
   // Compute Active Tare Weight Number
   const activeTareWeight: number = tareOption === "custom" 
@@ -372,8 +386,25 @@ export const ReysEntryFormPage: React.FC = () => {
     executeSaveEntry();
   };
 
+  const dataURLtoBlob = (dataurl: string): Blob => {
+    try {
+      const arr = dataurl.split(",");
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    } catch {
+      return new Blob([], { type: "image/jpeg" });
+    }
+  };
+
   // Execute actual entry saving
-  const executeSaveEntry = () => {
+  const executeSaveEntry = async () => {
     let finalPhotos = [...capturedPhotos];
     // If no photos attached yet and camera is actively running, auto-capture a shot
     if (finalPhotos.length === 0 && isCameraActive) {
@@ -383,19 +414,40 @@ export const ReysEntryFormPage: React.FC = () => {
       }
     }
 
-    const newEntry: SavedEntryItem = {
-      id: Date.now(),
-      boxCode: boxCode.trim(),
-      grossWeight: Number(grossWeight),
-      tareWeight: activeTareWeight,
-      netWeight: computedNetWeight,
-      photoUrl: finalPhotos[0] || undefined,
-      photoUrls: finalPhotos.length > 0 ? finalPhotos : undefined,
-      createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-    };
+    const currentBoxCode = boxCode.trim();
+    const currentGross = Number(grossWeight);
 
-    setSavedEntries([newEntry, ...savedEntries]);
-    setSuccessToast(`✓ Karobka #${boxCode} saqlandi (${computedNetWeight} kg toza, ${finalPhotos.length} ta rasm)`);
+    let savedItem: SavedEntryItem;
+    try {
+      const photoBlobs = finalPhotos.map((p) => dataURLtoBlob(p));
+      const res = await createEntry(
+        {
+          reys_id: reys.id,
+          box_code: currentBoxCode,
+          tovar_turi: categoryTitle,
+          gross_weight: currentGross,
+          tare_weight: activeTareWeight,
+          coefficient_mode: tareOption === "0" ? "none" : "box",
+        },
+        photoBlobs
+      );
+      savedItem = res;
+    } catch (err: any) {
+      console.warn("API save failed, using local fallback", err);
+      savedItem = {
+        id: Date.now(),
+        boxCode: currentBoxCode,
+        grossWeight: currentGross,
+        tareWeight: activeTareWeight,
+        netWeight: computedNetWeight,
+        photoUrl: finalPhotos[0] || undefined,
+        photoUrls: finalPhotos.length > 0 ? finalPhotos : undefined,
+        createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      };
+    }
+
+    setSavedEntries([savedItem, ...savedEntries]);
+    setSuccessToast(`✓ Karobka #${currentBoxCode} saqlandi (${savedItem.netWeight} kg toza, ${finalPhotos.length} ta rasm)`);
     setTimeout(() => setSuccessToast(null), 3000);
 
     // Reset Form Fields

@@ -1,16 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Scale, Truck, FileSpreadsheet, X, ChevronRight, ListOrdered } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
+import { getReys } from "../../api";
+import { ReysItem } from "../../types";
 
 // ROUTE: /reports/reys/:reysId
 export const ReysDetailPage: React.FC = () => {
   const { reysId } = useParams<{ reysId: string }>();
   const navigate = useNavigate();
 
-  // Find Reys details from mock data
-  const allReys = MOCK_CARGOS.flatMap((c) => c.reyslar);
-  const reys = allReys.find((r) => r.id === Number(reysId)) || allReys[0];
+  // Find Reys details with API fallback
+  const [reys, setReys] = useState<ReysItem>(() => {
+    const allReys = MOCK_CARGOS.flatMap((c) => c.reyslar);
+    return allReys.find((r) => r.id === Number(reysId)) || allReys[0];
+  });
+
+  useEffect(() => {
+    if (reysId) {
+      getReys(Number(reysId))
+        .then((data) => {
+          if (data) setReys(data);
+        })
+        .catch((err) => console.warn("Could not fetch live reys details, using cached", err));
+    }
+  }, [reysId]);
 
   // Modal State for Obshiy ves
   const [showObshiyVesModal, setShowObshiyVesModal] = useState(false);

@@ -1,8 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, Plus, ArrowLeft, Edit2, Trash2, AlertTriangle, X, ChevronRight, RotateCcw, Clock, Filter, FileSpreadsheet, Calendar } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
 import { CargoItem } from "../../types";
+import {
+  fetchCargos,
+  createCargo,
+  updateCargo,
+  deleteCargo,
+  restoreCargo,
+  fetchBinItems,
+  restoreBinItem,
+} from "../../api";
 
 interface RecycledCargoItem extends CargoItem {
   deletedAt: string;
@@ -100,81 +109,146 @@ export const CargoListPage: React.FC = () => {
     }
   };
 
+  // Load Cargos and Recycle Bin from API on mount
+  useEffect(() => {
+    loadCargos();
+    loadBinItems();
+  }, []);
+
+  const loadCargos = async () => {
+    try {
+      const res = await fetchCargos();
+      if (res && Array.isArray(res.items)) {
+        setCargoList(res.items);
+      }
+    } catch (err) {
+      console.warn("Could not load cargos from API, using fallback", err);
+    }
+  };
+
+  const loadBinItems = async () => {
+    try {
+      const res = await fetchBinItems();
+      if (res && Array.isArray(res.items)) {
+        const cargoBinItems: RecycledCargoItem[] = res.items
+          .filter((i: any) => i.entity_type === "cargo")
+          .map((i: any) => ({
+            id: i.entity_id,
+            code: i.title.replace(/^Kargo:\s*/i, ""),
+            reys_count: 0,
+            total_toza_kg: 0,
+            total_karobka_plus_kg: 0,
+            reyslar: [],
+            originalReyslar: [],
+            deletedAt: new Date(i.deleted_at * 1000).toISOString().split("T")[0],
+            daysRemaining: i.days_remaining,
+          }));
+        setRecycledCargos(cargoBinItems);
+      }
+    } catch (err) {
+      console.warn("Could not load bin items from API", err);
+    }
+  };
+
   // Add Handler
-  const handleAddCargo = () => {
+  const handleAddCargo = async () => {
     if (newCargoCode.trim()) {
-      const newCargo: CargoItem = {
-        id: Date.now(),
-        code: newCargoCode.toUpperCase().trim(),
-        reys_count: 0,
-        total_toza_kg: 0,
-        total_karobka_plus_kg: 0,
-        reyslar: [],
-      };
-      setCargoList([...cargoList, newCargo]);
+      const code = newCargoCode.toUpperCase().trim();
+      try {
+        const created = await createCargo(code);
+        setCargoList([created, ...cargoList]);
+      } catch (err: any) {
+        // Fallback for offline/mock
+        const fallbackCargo: CargoItem = {
+          id: Date.now(),
+          code,
+          reys_count: 0,
+          total_toza_kg: 0,
+          total_karobka_plus_kg: 0,
+          reyslar: [],
+        };
+        setCargoList([fallbackCargo, ...cargoList]);
+      }
       setNewCargoCode("");
       setShowAddModal(false);
     }
   };
 
   // Edit Handler
-  const handleEditCargo = () => {
+  const handleEditCargo = async () => {
     if (cargoToEdit && editCargoCode.trim()) {
-      setCargoList(
-        cargoList.map((c) =>
-          c.id === cargoToEdit.id ? { ...c, code: editCargoCode.toUpperCase().trim() } : c
-        )
-      );
+      const code = editCargoCode.toUpperCase().trim();
+      try {
+        const updated = await updateCargo(cargoToEdit.id, code);
+        setCargoList(cargoList.map((c) => (c.id === cargoToEdit.id ? updated : c)));
+      } catch (err: any) {
+        setCargoList(
+          cargoList.map((c) =>
+            c.id === cargoToEdit.id ? { ...c, code } : c
+          )
+        );
+      }
       setCargoToEdit(null);
       setEditCargoCode("");
     }
   };
 
   // Soft Delete Handler -> Cargo deleted, reys inside preserved but entry data cleared
-  const handleSoftDeleteCargo = () => {
+  const handleSoftDeleteCargo = async () => {
     if (cargoToDelete && confirmDeleteInput.trim().toUpperCase() === cargoToDelete.code) {
-      const clearedReyslar = cargoToDelete.reyslar.map((r) => ({
-        ...r,
-        toza_kg: 0,
-        karobka_plus_kg: 0,
-      }));
+      try {
+        await deleteCargo(cargoToDelete.id);
+        await loadCargos();
+        await loadBinItems();
+      } catch (err: any) {
+        const clearedReyslar = cargoToDelete.reyslar.map((r) => ({
+          ...r,
+          toza_kg: 0,
+          karobka_plus_kg: 0,
+        }));
 
-      const recycledItem: RecycledCargoItem = {
-        ...cargoToDelete,
-        total_toza_kg: 0,
-        total_karobka_plus_kg: 0,
-        reyslar: clearedReyslar,
-        originalReyslar: cargoToDelete.reyslar,
-        deletedAt: new Date().toISOString().split("T")[0],
-        daysRemaining: 30,
-      };
+        const recycledItem: RecycledCargoItem = {
+          ...cargoToDelete,
+          total_toza_kg: 0,
+          total_karobka_plus_kg: 0,
+          reyslar: clearedReyslar,
+          originalReyslar: cargoToDelete.reyslar,
+          deletedAt: new Date().toISOString().split("T")[0],
+          daysRemaining: 30,
+        };
 
-      setRecycledCargos([recycledItem, ...recycledCargos]);
-      setCargoList(cargoList.filter((c) => c.id !== cargoToDelete.id));
+        setRecycledCargos([recycledItem, ...recycledCargos]);
+        setCargoList(cargoList.filter((c) => c.id !== cargoToDelete.id));
+      }
       setCargoToDelete(null);
       setConfirmDeleteInput("");
     }
   };
 
   // Restore Handler -> Cargo restored, reys entry data restored to original
-  const handleRestoreCargo = (id: number) => {
-    const itemToRestore = recycledCargos.find((c) => c.id === id);
-    if (itemToRestore) {
-      const { deletedAt, daysRemaining, originalReyslar, ...restoredCargo } = itemToRestore;
-      
-      const restoredReys = originalReyslar || restoredCargo.reyslar;
-      const totalToza = restoredReys.reduce((sum, r) => sum + r.toza_kg, 0);
-      const totalKarobka = restoredReys.reduce((sum, r) => sum + r.karobka_plus_kg, 0);
+  const handleRestoreCargo = async (id: number) => {
+    try {
+      await restoreCargo(id);
+      await loadCargos();
+      await loadBinItems();
+    } catch (err: any) {
+      const itemToRestore = recycledCargos.find((c) => c.id === id);
+      if (itemToRestore) {
+        const { deletedAt, daysRemaining, originalReyslar, ...restoredCargo } = itemToRestore;
+        const restoredReys = originalReyslar || restoredCargo.reyslar;
+        const totalToza = restoredReys.reduce((sum, r) => sum + r.toza_kg, 0);
+        const totalKarobka = restoredReys.reduce((sum, r) => sum + r.karobka_plus_kg, 0);
 
-      const cargoRestoredFull: CargoItem = {
-        ...restoredCargo,
-        reyslar: restoredReys,
-        total_toza_kg: totalToza || restoredCargo.total_toza_kg,
-        total_karobka_plus_kg: totalKarobka || restoredCargo.total_karobka_plus_kg,
-      };
+        const cargoRestoredFull: CargoItem = {
+          ...restoredCargo,
+          reyslar: restoredReys,
+          total_toza_kg: totalToza || restoredCargo.total_toza_kg,
+          total_karobka_plus_kg: totalKarobka || restoredCargo.total_karobka_plus_kg,
+        };
 
-      setCargoList([cargoRestoredFull, ...cargoList]);
-      setRecycledCargos(recycledCargos.filter((c) => c.id !== id));
+        setCargoList([cargoRestoredFull, ...cargoList]);
+        setRecycledCargos(recycledCargos.filter((c) => c.id !== id));
+      }
     }
   };
 
