@@ -37,7 +37,7 @@ export const ActivityPage: React.FC = () => {
               <th className="px-4 py-3.5 text-right">Sof Vazn (kg)</th>
               <th className="px-4 py-3.5">Manba</th>
               <th className="px-4 py-3.5 text-center">Rasmlar</th>
-              <th className="px-4 py-3.5 text-center">Status</th>
+              <th className="px-4 py-3.5 text-center">Holat</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

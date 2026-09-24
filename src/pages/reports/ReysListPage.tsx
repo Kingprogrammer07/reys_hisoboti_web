@@ -752,7 +752,7 @@ export const ReysListPage: React.FC = () => {
                   <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground truncate">Reyslar Savatchasi (Recycle Bin)</h3>
+                  <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground truncate">Reyslar Savatchasi</h3>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">30 kunlik saqlash va Admin qayta tiklash paneli</p>
                 </div>
               </div>

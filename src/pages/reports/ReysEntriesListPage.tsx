@@ -13,6 +13,7 @@ import {
   ZoomIn
 } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
+import { fetchEntries, deleteEntry } from "../../api";
 
 export interface SavedEntryItem {
   id: number;
@@ -102,9 +103,27 @@ export const ReysEntriesListPage: React.FC = () => {
   }, [viewingPhoto]);
 
 
+  // Load entries from Backend API on mount
+  useEffect(() => {
+    if (reys?.id) {
+      fetchEntries(reys.id)
+        .then((res) => {
+          if (res && Array.isArray(res.items) && res.items.length > 0) {
+            setSavedEntries(res.items);
+          }
+        })
+        .catch((err) => console.warn("Could not load live entries from API, using cached", err));
+    }
+  }, [reys?.id]);
+
   // Delete an entry
-  const handleDeleteEntry = (id: number) => {
+  const handleDeleteEntry = async (id: number) => {
     if (window.confirm("Rostdan ham ushbu yozuvni o'chirmoqchimisiz?")) {
+      try {
+        await deleteEntry(id);
+      } catch (err) {
+        console.warn("API delete failed, removing locally", err);
+      }
       setSavedEntries(savedEntries.filter((e) => e.id !== id));
     }
   };

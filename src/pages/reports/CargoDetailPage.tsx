@@ -1,15 +1,29 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowLeft, FileSpreadsheet, Calendar, ListFilter, Check, X, Filter, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { MOCK_CARGOS } from "../../mock/data";
 import { ReysCard } from "../../components/reports/ReysCard";
+import { getCargo } from "../../api";
+import { CargoItem } from "../../types";
 
 const formatDate = (d: Date) => d.toISOString().split("T")[0];
 
 // ROUTE: /reports/cargos/:cargoId
 export const CargoDetailPage: React.FC = () => {
   const { cargoId } = useParams<{ cargoId: string }>();
-  const cargo = MOCK_CARGOS.find((c) => c.id === Number(cargoId)) || MOCK_CARGOS[0];
+  const [cargo, setCargo] = useState<CargoItem>(() => {
+    return MOCK_CARGOS.find((c) => c.id === Number(cargoId)) || MOCK_CARGOS[0];
+  });
+
+  useEffect(() => {
+    if (cargoId) {
+      getCargo(Number(cargoId))
+        .then((data) => {
+          if (data) setCargo(data);
+        })
+        .catch((err) => console.warn("Could not load cargo from API, using cached", err));
+    }
+  }, [cargoId]);
 
   // Search & Pagination States
   const [searchQuery, setSearchQuery] = useState("");

@@ -525,10 +525,10 @@ export const ReysEntryFormPage: React.FC = () => {
                 ? "bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm shadow-amber-500/10"
                 : "bg-background border-border text-muted-foreground hover:text-foreground"
             }`}
-            title="Fast Mode: Avtomatik fokus va doimiy kamera"
+            title="Tezkor Rejim: Avtomatik fokus va doimiy kamera"
           >
             <Zap className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isFastMode ? "text-amber-400 fill-amber-400" : ""}`} />
-            <span className="hidden md:inline">Fast</span>
+            <span className="hidden md:inline">Tezkor</span>
           </button>
 
           {/* Camera Close / Toggle Button */}
@@ -911,7 +911,7 @@ export const ReysEntryFormPage: React.FC = () => {
             className="w-full flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 sm:py-3.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-emerald-500/25 hover:from-emerald-600 hover:to-teal-600 active:scale-98 transition-all"
           >
             <Check className="h-4 w-4 sm:h-5 sm:w-5 stroke-[2.5]" />
-            <span>Saqlash {isFastMode ? "(Fast Mode Faol)" : ""}</span>
+            <span>Saqlash {isFastMode ? "(Tezkor rejim faol)" : ""}</span>
           </button>
         </div>
 
