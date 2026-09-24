@@ -233,9 +233,17 @@ export const ReysEntriesListPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {filteredEntries.map((item) => {
             // Resolve all photos for this item (multi-photo or single photo)
-            const itemPhotos = item.photoUrls && item.photoUrls.length > 0 
+            const rawPhotos = item.photoUrls && item.photoUrls.length > 0 
               ? item.photoUrls 
               : (item.photoUrl ? [item.photoUrl] : []);
+            
+            // Normalize any raw S3 URLs to the reliable backend proxy endpoint
+            const itemPhotos = rawPhotos.map((url, idx) => {
+              if (url && url.includes("r2.cloudflarestorage.com")) {
+                return `/api/entries/${item.id}/photos/${idx}`;
+              }
+              return url;
+            });
 
             return (
               <div 

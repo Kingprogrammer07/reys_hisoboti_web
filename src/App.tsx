@@ -21,7 +21,7 @@ const AppContent: React.FC = () => {
   const isLoginPage = location.pathname === "/login";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden w-full max-w-full">
       <Navbar />
       <main
         className={`flex-1 mx-auto w-full max-w-7xl ${
