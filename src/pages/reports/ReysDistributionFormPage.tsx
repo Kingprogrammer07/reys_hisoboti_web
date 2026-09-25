@@ -23,7 +23,8 @@ import {
   Zap, 
   Search,
   PackageCheck,
-  Hash
+  Hash,
+  ChevronDown
 } from "lucide-react";
 import { 
   getReys, 
@@ -92,6 +93,23 @@ export const ReysDistributionFormPage: React.FC = () => {
     return localStorage.getItem("mandarin_dist_saved_custom_coef") || "";
   });
   const customCoefInputRef = useRef<HTMLInputElement>(null);
+
+  // Ayrilmasin sub-options & custom added weights (persisted until deleted)
+  const DEFAULT_AYRILMASIN_WEIGHTS = [1, 1.22, 1.4];
+  const [customBoxWeights, setCustomBoxWeights] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem("mandarin_dist_custom_box_weights");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [ayrilmasinWeight, setAyrilmasinWeight] = useState<number>(() => {
+    const saved = localStorage.getItem("mandarin_dist_ayrilmasin_weight");
+    return saved !== null ? Number(saved) : 0;
+  });
+  const [showAyrilmasinMenu, setShowAyrilmasinMenu] = useState<boolean>(false);
+  const [newCustomBoxWeightInput, setNewCustomBoxWeightInput] = useState<string>("");
 
   // Og'irlik (W) input
   const [grossWeight, setGrossWeight] = useState<string>("");
@@ -171,15 +189,77 @@ export const ReysDistributionFormPage: React.FC = () => {
   const allAvailableTypes = Array.from(new Set([...DEFAULT_TYPES, ...customTypes]));
 
   // Active Karobka Weight Calculation
-  const activeCoefValue = coefOption === "0"
-    ? 0
+  const isAyrilmasin = coefOption === "0";
+  const activeCoefValue = isAyrilmasin
+    ? ayrilmasinWeight
     : coefOption === "custom"
     ? Number(customCoefValue) || 0
     : Number(coefOption) || 0;
 
   // Live Net Weight Calculation
+  // In "Ayirilmasin" mode: Net weight = Gross weight (tare is NOT subtracted)
+  // In other modes: Net weight = Gross weight - activeCoefValue
   const grossNum = Number(grossWeight) || 0;
-  const computedNetWeight = Math.max(0, grossNum > 0 ? Number((grossNum - activeCoefValue).toFixed(2)) : 0);
+  const computedNetWeight = Math.max(
+    0,
+    grossNum > 0
+      ? isAyrilmasin
+        ? Number(grossNum.toFixed(2))
+        : Number((grossNum - activeCoefValue).toFixed(2))
+      : 0
+  );
+
+  const allAyrilmasinWeights = Array.from(
+    new Set([...DEFAULT_AYRILMASIN_WEIGHTS, ...customBoxWeights])
+  ).sort((a, b) => a - b);
+
+  const handleAddCustomBoxWeight = () => {
+    const val = Number(newCustomBoxWeightInput);
+    if (!val || val <= 0 || val > 10) {
+      alert("Iltimos, to'g'ri karobka og'irligini kiriting (0 dan 10 kg gacha)!");
+      return;
+    }
+    const rounded = Number(val.toFixed(2));
+    let nextList = customBoxWeights;
+    if (!DEFAULT_AYRILMASIN_WEIGHTS.includes(rounded) && !customBoxWeights.includes(rounded)) {
+      nextList = [...customBoxWeights, rounded].sort((a, b) => a - b);
+      setCustomBoxWeights(nextList);
+      localStorage.setItem("mandarin_dist_custom_box_weights", JSON.stringify(nextList));
+    }
+    setAyrilmasinWeight(rounded);
+    localStorage.setItem("mandarin_dist_ayrilmasin_weight", String(rounded));
+    setCoefOption("0");
+    setNewCustomBoxWeightInput("");
+    setShowAyrilmasinMenu(false);
+    setSuccessToast(`✓ Ayirilmasin (${rounded} kg) tanlandi va saqlandi`);
+    setTimeout(() => setSuccessToast(null), 3000);
+  };
+
+  const handleDeleteCustomBoxWeight = (weightToDelete: number) => {
+    const nextList = customBoxWeights.filter((w) => w !== weightToDelete);
+    setCustomBoxWeights(nextList);
+    localStorage.setItem("mandarin_dist_custom_box_weights", JSON.stringify(nextList));
+    if (ayrilmasinWeight === weightToDelete) {
+      setAyrilmasinWeight(0);
+      localStorage.setItem("mandarin_dist_ayrilmasin_weight", "0");
+    }
+  };
+
+  const selectAyrilmasinWeight = (weight: number) => {
+    setAyrilmasinWeight(weight);
+    localStorage.setItem("mandarin_dist_ayrilmasin_weight", String(weight));
+    setCoefOption("0");
+    setShowAyrilmasinMenu(false);
+  };
+
+  const handleAyrilmasinChipClick = () => {
+    if (coefOption !== "0") {
+      setCoefOption("0");
+      setShowAyrilmasinMenu(true);
+    } else {
+      setShowAyrilmasinMenu((prev) => !prev);
+    }
+  };
 
   // Initialize Camera
   useEffect(() => {
@@ -343,7 +423,7 @@ export const ReysDistributionFormPage: React.FC = () => {
       return;
     }
 
-    if (activeCoefValue >= gross) {
+    if (!isAyrilmasin && activeCoefValue >= gross) {
       alert("Karobka og'irligi umumiy og'irlikdan kichik bo'lishi kerak!");
       return;
     }
@@ -355,6 +435,11 @@ export const ReysDistributionFormPage: React.FC = () => {
     }
 
     const currentBoxCode = `${selectedType.toUpperCase()}-${Date.now().toString().slice(-4)}`;
+    const coefMode = isAyrilmasin
+      ? (ayrilmasinWeight > 0 ? "box" : "none")
+      : coefOption === "custom"
+      ? "custom"
+      : "fixed";
 
     try {
       const photoBlobs = finalPhotos.map((p) => dataURLtoBlob(p));
@@ -365,7 +450,7 @@ export const ReysDistributionFormPage: React.FC = () => {
           tovar_turi: selectedType,
           gross_weight: gross,
           tare_weight: activeCoefValue,
-          coefficient_mode: coefOption === "0" ? "none" : coefOption === "custom" ? "custom" : "fixed",
+          coefficient_mode: coefMode,
         },
         photoBlobs
       );
@@ -380,7 +465,7 @@ export const ReysDistributionFormPage: React.FC = () => {
             tovar_turi: selectedType,
             gross_weight: gross,
             tare_weight: activeCoefValue,
-            coefficient_mode: coefOption === "0" ? "none" : coefOption === "custom" ? "custom" : "fixed",
+            coefficient_mode: coefMode,
           },
           photoBlobs
         );
@@ -402,12 +487,14 @@ export const ReysDistributionFormPage: React.FC = () => {
     if (shouldRemember) {
       localStorage.setItem("mandarin_dist_saved_type", selectedType);
       localStorage.setItem("mandarin_dist_saved_coef", coefOption);
+      localStorage.setItem("mandarin_dist_ayrilmasin_weight", String(ayrilmasinWeight));
       if (coefOption === "custom") {
         localStorage.setItem("mandarin_dist_saved_custom_coef", customCoefValue);
       }
     } else {
       setSelectedType("akb");
       setCoefOption("0");
+      setAyrilmasinWeight(0);
       setCustomCoefValue("");
     }
 
@@ -818,14 +905,35 @@ export const ReysDistributionFormPage: React.FC = () => {
                   Karobka og'irligi:
                 </label>
                 <span className="text-[11px] font-semibold text-emerald-400 font-mono">
-                  Tanlangan: {activeCoefValue > 0 ? `${activeCoefValue} kg` : "Ayirilmasin"}
+                  Tanlangan: {isAyrilmasin 
+                    ? ayrilmasinWeight > 0 
+                      ? `Ayirilmasin (${ayrilmasinWeight} kg)` 
+                      : "Ayirilmasin (0 kg)" 
+                    : `${activeCoefValue} kg`}
                 </span>
               </div>
 
               {/* 5 Chips: fits 320px mobile up to desktop */}
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                {/* 1. Ayirilmasin chip with dropdown toggle indicator */}
+                <button
+                  type="button"
+                  onClick={handleAyrilmasinChipClick}
+                  className={`py-2 px-1 text-center rounded-xl text-[11px] sm:text-xs font-bold transition-all border flex items-center justify-center space-x-0.5 cursor-pointer ${
+                    coefOption === "0"
+                      ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                      : "bg-background/60 border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  }`}
+                  title="Ayirilmasin menyusini ochish / tanlash"
+                >
+                  <span className="truncate">
+                    {ayrilmasinWeight > 0 ? `Ayirilmasin (${ayrilmasinWeight})` : "Ayirilmasin"}
+                  </span>
+                  <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showAyrilmasinMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* 2-5. Standard and Custom chips */}
                 {[
-                  { key: "0", label: "Ayirilmasin" },
                   { key: "0.94", label: "0.94 kg" },
                   { key: "1.22", label: "1.22 kg" },
                   { key: "1.4", label: "1.4 kg" },
@@ -835,12 +943,13 @@ export const ReysDistributionFormPage: React.FC = () => {
                     key={opt.key}
                     type="button"
                     onClick={() => {
+                      setShowAyrilmasinMenu(false);
                       setCoefOption(opt.key as any);
                       if (opt.key === "custom") {
                         setTimeout(() => customCoefInputRef.current?.focus(), 100);
                       }
                     }}
-                    className={`py-2 px-1 text-center rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
+                    className={`py-2 px-1 text-center rounded-xl text-[11px] sm:text-xs font-bold transition-all border cursor-pointer ${
                       coefOption === opt.key
                         ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20"
                         : "bg-background/60 border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -850,6 +959,125 @@ export const ReysDistributionFormPage: React.FC = () => {
                   </button>
                 ))}
               </div>
+
+              {/* AYIRILMASIN DROPDOWN MENU */}
+              {showAyrilmasinMenu && (
+                <div className="p-3 sm:p-4 rounded-2xl border border-emerald-500/30 bg-card/95 backdrop-blur-md shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <div className="flex items-center space-x-1.5">
+                      <PackageCheck className="h-4 w-4 text-emerald-400" />
+                      <span className="text-xs font-bold text-foreground">
+                        Ayirilmasin rejimi (Karobka og'irligi)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAyrilmasinMenu(false)}
+                      className="p-1 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
+                      title="Yopish"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground">
+                    Bu rejimda quti og'irligidan karobka ayirilmaydi (toza vazn = umumiy vazn), lekin umumiy hisobotda karobka og'irligi sifatida qayd etiladi.
+                  </p>
+
+                  {/* Options Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {/* 0 kg option */}
+                    <button
+                      type="button"
+                      onClick={() => selectAyrilmasinWeight(0)}
+                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                        coefOption === "0" && ayrilmasinWeight === 0
+                          ? "border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-md font-bold"
+                          : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                      }`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold">Ayirilmasin</div>
+                        <div className="text-[10px] opacity-70">0 kg (Belgilanmasin)</div>
+                      </div>
+                      {coefOption === "0" && ayrilmasinWeight === 0 && <Check className="h-4 w-4 shrink-0 text-emerald-400" />}
+                    </button>
+
+                    {/* Standard & Custom Options */}
+                    {allAyrilmasinWeights.map((weight) => {
+                      const isCustom = !DEFAULT_AYRILMASIN_WEIGHTS.includes(weight);
+                      const isSelected = coefOption === "0" && ayrilmasinWeight === weight;
+                      return (
+                        <div
+                          key={weight}
+                          onClick={() => selectAyrilmasinWeight(weight)}
+                          className={`group relative p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-md font-bold"
+                              : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          }`}
+                        >
+                          <div>
+                            <div className="text-xs font-bold font-mono">Ayirilmasin ({weight})</div>
+                            <div className="text-[10px] opacity-70 font-mono">{weight} kg karobka</div>
+                          </div>
+
+                          <div className="flex items-center space-x-1 shrink-0">
+                            {isSelected && <Check className="h-4 w-4 text-emerald-400" />}
+                            {isCustom && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCustomBoxWeight(weight);
+                                }}
+                                className="p-1 text-muted-foreground hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
+                                title="Ushbu maxsus qiymatni o'chirish"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add New Custom Box Weight Input Row */}
+                  <div className="pt-2 border-t border-border/40">
+                    <label className="text-[11px] font-semibold text-foreground block mb-1.5">
+                      + Yangi karobka og'irligi qo'shish (Doimiy saqlanadi):
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={newCustomBoxWeightInput}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/,/g, ".");
+                            if (/^\d*\.?\d*$/.test(val)) setNewCustomBoxWeightInput(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleAddCustomBoxWeight();
+                          }}
+                          placeholder="Masalan: 1.05 yoki 1.15"
+                          className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono font-bold text-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                        <span className="absolute right-3 top-2 text-[11px] font-bold text-muted-foreground">kg</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomBoxWeight}
+                        className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                      >
+                        <Plus className="h-3.5 w-3.5 stroke-[3]" />
+                        <span>Qo'shish</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Custom Karobka Weight Input */}
               {coefOption === "custom" && (
@@ -895,7 +1123,16 @@ export const ReysDistributionFormPage: React.FC = () => {
             {grossNum > 0 && (
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] font-mono text-muted-foreground animate-in fade-in">
                 <span>Og'irlik: <strong className="text-foreground">{grossNum} kg</strong></span>
-                <span>Karobka: <strong className="text-foreground">-{activeCoefValue} kg</strong></span>
+                <span>
+                  Karobka:{" "}
+                  <strong className={isAyrilmasin && activeCoefValue > 0 ? "text-amber-400" : "text-foreground"}>
+                    {isAyrilmasin
+                      ? activeCoefValue > 0
+                        ? `${activeCoefValue} kg (ayirilmaydi)`
+                        : "0 kg"
+                      : `-${activeCoefValue} kg`}
+                  </strong>
+                </span>
                 <span className="text-emerald-400 font-bold">Toza: {computedNetWeight} kg</span>
               </div>
             )}
