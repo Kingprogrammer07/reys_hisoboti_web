@@ -161,7 +161,8 @@ export const ReysListPage: React.FC = () => {
       try {
         await updateReys(reysForOptions.id, { custom_name: customName });
       } catch (err) {
-        console.warn("API error updating custom name", err);
+        alert(`Reys nomi saqlanmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setReysList(
         reysList.map((r) =>
@@ -188,20 +189,8 @@ export const ReysListPage: React.FC = () => {
           const adjusted = await adjustReys(reysForOptions.id, targetWeight, newKarobka);
           setReysList(reysList.map((r) => (r.id === reysForOptions.id ? adjusted : r)));
         } catch (err) {
-          setReysList(
-            reysList.map((r) =>
-              r.id === reysForOptions.id
-                ? {
-                    ...r,
-                    toza_kg: targetWeight,
-                    karobka_plus_kg: newKarobka,
-                    original_toza_kg: originalToza,
-                    original_karobka_plus_kg: originalKarobka,
-                    adjustment_diff_kg: targetWeight - originalToza,
-                  }
-                : r
-            )
-          );
+          alert(`Vazn moslanmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+          return;
         }
         setReysForOptions(null);
       }
@@ -217,20 +206,8 @@ export const ReysListPage: React.FC = () => {
         const adjusted = await adjustReys(reysForOptions.id, origToza, origKarobka);
         setReysList(reysList.map((r) => (r.id === reysForOptions.id ? adjusted : r)));
       } catch (err) {
-        setReysList(
-          reysList.map((r) =>
-            r.id === reysForOptions.id
-              ? {
-                  ...r,
-                  toza_kg: origToza,
-                  karobka_plus_kg: origKarobka,
-                  adjustment_diff_kg: undefined,
-                  original_toza_kg: undefined,
-                  original_karobka_plus_kg: undefined,
-                }
-              : r
-          )
-        );
+        alert(`Vazn asliga qaytarilmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setReysForOptions(null);
     }
@@ -245,14 +222,8 @@ export const ReysListPage: React.FC = () => {
         const created = await createReys({ code, date });
         setReysList([created, ...reysList]);
       } catch (err) {
-        const newReys: ReysItem = {
-          id: Date.now(),
-          code,
-          toza_kg: 0,
-          karobka_plus_kg: 0,
-          date,
-        };
-        setReysList([newReys, ...reysList]);
+        alert(`Reys saqlanmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setNewReysCode("");
       setShowAddModal(false);
@@ -267,11 +238,8 @@ export const ReysListPage: React.FC = () => {
         const updated = await updateReys(reysToEdit.id, { code });
         setReysList(reysList.map((r) => (r.id === reysToEdit.id ? updated : r)));
       } catch (err) {
-        setReysList(
-          reysList.map((r) =>
-            r.id === reysToEdit.id ? { ...r, code } : r
-          )
-        );
+        alert(`Reys o'zgartirilmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setReysToEdit(null);
     }
@@ -285,13 +253,8 @@ export const ReysListPage: React.FC = () => {
         await loadReyslar();
         await loadBinItems();
       } catch (err) {
-        const itemToRecycle: RecycledReysItem = {
-          ...reysToDelete,
-          deletedAt: new Date().toISOString().split("T")[0],
-          daysRemaining: 30,
-        };
-        setRecycledList([itemToRecycle, ...recycledList]);
-        setReysList(reysList.filter((r) => r.id !== reysToDelete.id));
+        alert(`Reys savatchaga o'tkazilmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setReysToDelete(null);
       setConfirmDeleteInput("");
@@ -305,12 +268,7 @@ export const ReysListPage: React.FC = () => {
       await loadReyslar();
       await loadBinItems();
     } catch (err) {
-      const itemToRestore = recycledList.find((r) => r.id === id);
-      if (itemToRestore) {
-        const { deletedAt, daysRemaining, ...restoredReys } = itemToRestore;
-        setReysList([restoredReys, ...reysList]);
-        setRecycledList(recycledList.filter((r) => r.id !== id));
-      }
+      alert(`Reys tiklanmadi: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
     }
   };
 

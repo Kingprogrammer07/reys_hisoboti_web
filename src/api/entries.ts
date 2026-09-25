@@ -49,6 +49,19 @@ export async function createEntry(
   });
 }
 
+export async function adjustEntryInventory(data: {
+  reys_id: number;
+  from_type: string;
+  to_type: string;
+  weight: number;
+  created_by?: string;
+}): Promise<{ ok: boolean; balances: Record<string, number> }> {
+  return request(`/api/entries/adjust`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function deleteEntry(id: number): Promise<void> {
   return request(`/api/entries/${id}`, {
     method: "DELETE",

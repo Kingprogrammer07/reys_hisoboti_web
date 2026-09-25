@@ -8,7 +8,6 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  Sparkles,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -327,7 +326,7 @@ export const LoginPage: React.FC = () => {
         <div className="pt-2 border-t border-border/50 text-center">
           <p className="text-[11px] text-muted-foreground flex items-center justify-center space-x-1">
             <Lock className="h-3 w-3 text-emerald-400" />
-            <span>Standart PIN: <strong className="text-foreground">2222</strong> (yoki .env paroli)</span>
+            <span>PIN yoki parol administrator tomonidan beriladi</span>
           </p>
         </div>
       </div>

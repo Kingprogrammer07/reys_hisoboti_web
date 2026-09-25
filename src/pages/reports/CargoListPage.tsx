@@ -153,16 +153,8 @@ export const CargoListPage: React.FC = () => {
         const created = await createCargo(code);
         setCargoList([created, ...cargoList]);
       } catch (err: any) {
-        // Fallback for offline/mock
-        const fallbackCargo: CargoItem = {
-          id: Date.now(),
-          code,
-          reys_count: 0,
-          total_toza_kg: 0,
-          total_karobka_plus_kg: 0,
-          reyslar: [],
-        };
-        setCargoList([fallbackCargo, ...cargoList]);
+        alert(`Kargo saqlanmadi: ${err?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setNewCargoCode("");
       setShowAddModal(false);
@@ -177,11 +169,8 @@ export const CargoListPage: React.FC = () => {
         const updated = await updateCargo(cargoToEdit.id, code);
         setCargoList(cargoList.map((c) => (c.id === cargoToEdit.id ? updated : c)));
       } catch (err: any) {
-        setCargoList(
-          cargoList.map((c) =>
-            c.id === cargoToEdit.id ? { ...c, code } : c
-          )
-        );
+        alert(`Kargo o'zgartirilmadi: ${err?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setCargoToEdit(null);
       setEditCargoCode("");
@@ -196,24 +185,8 @@ export const CargoListPage: React.FC = () => {
         await loadCargos();
         await loadBinItems();
       } catch (err: any) {
-        const clearedReyslar = cargoToDelete.reyslar.map((r) => ({
-          ...r,
-          toza_kg: 0,
-          karobka_plus_kg: 0,
-        }));
-
-        const recycledItem: RecycledCargoItem = {
-          ...cargoToDelete,
-          total_toza_kg: 0,
-          total_karobka_plus_kg: 0,
-          reyslar: clearedReyslar,
-          originalReyslar: cargoToDelete.reyslar,
-          deletedAt: new Date().toISOString().split("T")[0],
-          daysRemaining: 30,
-        };
-
-        setRecycledCargos([recycledItem, ...recycledCargos]);
-        setCargoList(cargoList.filter((c) => c.id !== cargoToDelete.id));
+        alert(`Kargo savatchaga o'tkazilmadi: ${err?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setCargoToDelete(null);
       setConfirmDeleteInput("");
@@ -227,23 +200,7 @@ export const CargoListPage: React.FC = () => {
       await loadCargos();
       await loadBinItems();
     } catch (err: any) {
-      const itemToRestore = recycledCargos.find((c) => c.id === id);
-      if (itemToRestore) {
-        const { deletedAt, daysRemaining, originalReyslar, ...restoredCargo } = itemToRestore;
-        const restoredReys = originalReyslar || restoredCargo.reyslar;
-        const totalToza = restoredReys.reduce((sum, r) => sum + r.toza_kg, 0);
-        const totalKarobka = restoredReys.reduce((sum, r) => sum + r.karobka_plus_kg, 0);
-
-        const cargoRestoredFull: CargoItem = {
-          ...restoredCargo,
-          reyslar: restoredReys,
-          total_toza_kg: totalToza || restoredCargo.total_toza_kg,
-          total_karobka_plus_kg: totalKarobka || restoredCargo.total_karobka_plus_kg,
-        };
-
-        setCargoList([cargoRestoredFull, ...cargoList]);
-        setRecycledCargos(recycledCargos.filter((c) => c.id !== id));
-      }
+      alert(`Kargo tiklanmadi: ${err?.message || "Server bilan aloqa yo'q"}`);
     }
   };
 

@@ -28,6 +28,7 @@ import {
 import { 
   getReys, 
   createEntry, 
+  adjustEntryInventory,
   fetchEntries, 
   fetchInventory, 
   fetchCustomTypes, 
@@ -416,20 +417,13 @@ export const ReysDistributionFormPage: React.FC = () => {
       return;
     }
 
-    // Record adjustment via entry API or outbox
     try {
-      const code = `ADJ-${adjFromType.toUpperCase()}->${adjToType.toUpperCase()}`;
-      await createEntry(
-        {
-          reys_id: Number(reysId),
-          box_code: code,
-          tovar_turi: adjToType,
-          gross_weight: weight,
-          tare_weight: 0,
-          coefficient_mode: "none",
-        },
-        []
-      );
+      await adjustEntryInventory({
+        reys_id: Number(reysId),
+        from_type: adjFromType,
+        to_type: adjToType,
+        weight,
+      });
       setSuccessToast(`✓ ${adjFromType.toUpperCase()} dan ${adjToType.toUpperCase()} ga ${weight} kg o'tkazildi`);
       setTimeout(() => setSuccessToast(null), 3500);
       setAdjWeight("");

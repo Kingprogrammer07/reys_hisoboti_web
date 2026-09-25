@@ -16,48 +16,29 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const savedUser = localStorage.getItem("reys_user");
-    return savedUser ? { username: savedUser } : null;
-  });
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem("reys_token");
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    return !localStorage.getItem("reys_token");
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const checkAuth = async () => {
     try {
-      // Only set loading if no cached token exists
-      if (!localStorage.getItem("reys_token")) {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
       const res = await authApi.getMe();
       if (res.authenticated && res.user) {
         setUser({ username: res.user });
         setIsAuthenticated(true);
         localStorage.setItem("reys_user", res.user);
       } else {
-        // If server says not authenticated and no valid token stored, clear
-        const localToken = localStorage.getItem("reys_token");
-        if (!localToken) {
-          setUser(null);
-          setIsAuthenticated(false);
-          localStorage.removeItem("reys_user");
-        }
-      }
-    } catch (err) {
-      // In case of offline/network error, rely on cached localStorage
-      const localToken = localStorage.getItem("reys_token");
-      const localUser = localStorage.getItem("reys_user");
-      if (localToken && localUser) {
-        setUser({ username: localUser });
-        setIsAuthenticated(true);
-      } else {
         setUser(null);
         setIsAuthenticated(false);
+        localStorage.removeItem("reys_token");
+        localStorage.removeItem("reys_user");
       }
+    } catch (err) {
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem("reys_token");
+      localStorage.removeItem("reys_user");
     } finally {
       setIsLoading(false);
     }
@@ -80,8 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       if (res.token) {
         localStorage.setItem("reys_token", res.token);
-      } else {
-        localStorage.setItem("reys_token", "authenticated_session");
       }
       localStorage.setItem("reys_user", activeUser);
       return true;
