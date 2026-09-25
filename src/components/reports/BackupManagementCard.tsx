@@ -20,10 +20,10 @@ export const BackupManagementCard: React.FC = () => {
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchStats = async () => {
+  const fetchStats = async (clearMessage = true) => {
     try {
       setLoading(true);
-      setMessage(null);
+      if (clearMessage) setMessage(null);
       const res = await backupApi.getStats();
       setData(res);
     } catch (err: any) {
@@ -50,7 +50,7 @@ export const BackupManagementCard: React.FC = () => {
         type: "success",
         text: res.message || "Zaxira nusxasi Telegram kanalga yuborildi!",
       });
-      fetchStats();
+      fetchStats(false);
     } catch (err: any) {
       setMessage({
         type: "error",
@@ -136,7 +136,7 @@ export const BackupManagementCard: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchStats}
+          onClick={() => fetchStats()}
           disabled={loading}
           className="self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 hover:bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           title="Ma'lumotlarni yangilash"

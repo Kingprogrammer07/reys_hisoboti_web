@@ -26,7 +26,9 @@ export const ReysDistributionListPage: React.FC = () => {
   const [entries, setEntries] = useState<SavedEntryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const viewingPhoto = lightboxPhotos[lightboxIndex] || null;
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<SavedEntryItem | null>(null);
@@ -40,6 +42,42 @@ export const ReysDistributionListPage: React.FC = () => {
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editBoxInputRef = useRef<HTMLInputElement>(null);
+  const lightboxTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const closeLightbox = () => {
+    setLightboxPhotos([]);
+    setLightboxIndex(0);
+  };
+
+  const openLightbox = (photos: string[], idx: number) => {
+    setLightboxPhotos(photos);
+    setLightboxIndex(idx);
+  };
+
+  const moveLightbox = (delta: number) => {
+    setLightboxIndex((idx) => {
+      if (lightboxPhotos.length === 0) return 0;
+      return (idx + delta + lightboxPhotos.length) % lightboxPhotos.length;
+    });
+  };
+
+  const handleLightboxTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    lightboxTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleLightboxTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const start = lightboxTouchStartRef.current;
+    lightboxTouchStartRef.current = null;
+    if (!start || lightboxPhotos.length <= 1) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    moveLightbox(dx < 0 ? 1 : -1);
+  };
 
   const focusAboveKeyboard = (el: HTMLInputElement | null) => {
     setTimeout(() => {
@@ -73,6 +111,20 @@ export const ReysDistributionListPage: React.FC = () => {
   }, [reysId]);
 
   useEffect(() => {
+    if (viewingPhoto || editingEntry) {
+      document.body.classList.add("camera-active");
+      window.dispatchEvent(new Event("camera-state-change"));
+    } else {
+      document.body.classList.remove("camera-active");
+      window.dispatchEvent(new Event("camera-state-change"));
+    }
+    return () => {
+      document.body.classList.remove("camera-active");
+      window.dispatchEvent(new Event("camera-state-change"));
+    };
+  }, [viewingPhoto, editingEntry]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
@@ -81,8 +133,13 @@ export const ReysDistributionListPage: React.FC = () => {
         return;
       }
       if (e.key === "Escape") {
-        if (viewingPhoto) setViewingPhoto(null);
+        if (viewingPhoto) closeLightbox();
         else if (editingEntry) setEditingEntry(null);
+        return;
+      }
+      if (viewingPhoto && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        moveLightbox(e.key === "ArrowLeft" ? -1 : 1);
         return;
       }
       if (editingEntry && (e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -92,7 +149,7 @@ export const ReysDistributionListPage: React.FC = () => {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [viewingPhoto, editingEntry, editForm]);
+  }, [viewingPhoto, editingEntry, editForm, lightboxPhotos.length]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -345,14 +402,17 @@ export const ReysDistributionListPage: React.FC = () => {
                       {photos.slice(0, 3).map((p, pIdx) => (
                         <div
                           key={pIdx}
-                          onClick={() => setViewingPhoto(p)}
+                          onClick={() => openLightbox(photos, pIdx)}
                           className="h-10 w-10 rounded-xl overflow-hidden border-2 border-card bg-black/60 cursor-pointer hover:scale-110 transition-transform shadow-xs"
                         >
                           <img src={p} alt="" className="w-full h-full object-cover" />
                         </div>
                       ))}
                       {photos.length > 3 && (
-                        <div className="h-10 w-10 rounded-xl bg-muted border-2 border-card flex items-center justify-center text-[10px] font-bold text-muted-foreground font-mono">
+                        <div
+                          onClick={() => openLightbox(photos, 3)}
+                          className="h-10 w-10 rounded-xl bg-muted border-2 border-card flex items-center justify-center text-[10px] font-bold text-muted-foreground font-mono cursor-pointer"
+                        >
                           +{photos.length - 3}
                         </div>
                       )}
@@ -475,16 +535,55 @@ export const ReysDistributionListPage: React.FC = () => {
       {/* Lightbox Modal */}
       {viewingPhoto && (
         <div
-          onClick={() => setViewingPhoto(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"
+          onClick={closeLightbox}
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"
         >
-          <img src={viewingPhoto} alt="Rasm" className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl" />
-          <button
-            onClick={() => setViewingPhoto(null)}
-            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-white border border-white/20"
+          <div
+            className="relative max-w-2xl max-h-[90vh] flex flex-col items-center select-none touch-pan-y"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
           >
-            <X className="h-5 w-5" />
-          </button>
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="absolute -top-10 sm:-top-12 right-0 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+              title="Yopish"
+            >
+              <X className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+            <img src={viewingPhoto} alt="Rasm" className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/20" />
+            {lightboxPhotos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => moveLightbox(-1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveLightbox(1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                >
+                  <ArrowLeft className="h-5 w-5 rotate-180" />
+                </button>
+              </>
+            )}
+            <div className="mt-2.5 flex items-center space-x-3">
+              <span className="text-[11px] sm:text-xs text-white/70">
+                {lightboxPhotos.length > 1 ? `${lightboxIndex + 1}/${lightboxPhotos.length} · swipe / ←/→` : "Yopish uchun bosing"}
+              </span>
+              <button
+                type="button"
+                onClick={closeLightbox}
+                className="px-2.5 py-1 rounded-xl bg-white/20 text-white text-[11px] sm:text-xs font-semibold hover:bg-white/30"
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

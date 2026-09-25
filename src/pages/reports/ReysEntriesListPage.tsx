@@ -71,6 +71,7 @@ export const ReysEntriesListPage: React.FC = () => {
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editBoxInputRef = useRef<HTMLInputElement>(null);
+  const lightboxTouchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const closeLightbox = () => {
     setLightboxPhotos([]);
@@ -87,6 +88,24 @@ export const ReysEntriesListPage: React.FC = () => {
       if (lightboxPhotos.length === 0) return 0;
       return (idx + delta + lightboxPhotos.length) % lightboxPhotos.length;
     });
+  };
+
+  const handleLightboxTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    lightboxTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleLightboxTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const start = lightboxTouchStartRef.current;
+    lightboxTouchStartRef.current = null;
+    if (!start || lightboxPhotos.length <= 1) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    moveLightbox(dx < 0 ? 1 : -1);
   };
 
   const focusAboveKeyboard = (el: HTMLInputElement | null) => {
@@ -566,7 +585,12 @@ export const ReysEntriesListPage: React.FC = () => {
           onClick={closeLightbox}
           className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 cursor-pointer animate-in fade-in duration-150"
         >
-          <div className="relative max-w-2xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative max-w-2xl max-h-[90vh] flex flex-col items-center select-none touch-pan-y"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
+          >
             <button
               type="button"
               onClick={closeLightbox}
@@ -600,7 +624,7 @@ export const ReysEntriesListPage: React.FC = () => {
             )}
             <div className="mt-2.5 flex items-center space-x-3">
               <span className="text-[11px] sm:text-xs text-white/70">
-                {lightboxPhotos.length > 1 ? `${lightboxIndex + 1}/${lightboxPhotos.length} · ←/→` : "Yopish uchun bosing"}
+                {lightboxPhotos.length > 1 ? `${lightboxIndex + 1}/${lightboxPhotos.length} · swipe / ←/→` : "Yopish uchun bosing"}
               </span>
               <button
                 type="button"
