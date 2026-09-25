@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { backupApi, BackupStatsResponse } from "../../api/backup";
+import { downloadFile } from "../../api/client";
 
 export const BackupManagementCard: React.FC = () => {
   const [data, setData] = useState<BackupStatsResponse | null>(null);
@@ -60,8 +61,18 @@ export const BackupManagementCard: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    window.open(backupApi.getDownloadUrl(), "_blank");
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+      await downloadFile("/api/backup/download", "hisobot_backup.dump");
+    } catch (err: any) {
+      setMessage({
+        type: "error",
+        text: err?.message || "Zaxira faylini yuklab olishda xatolik.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
