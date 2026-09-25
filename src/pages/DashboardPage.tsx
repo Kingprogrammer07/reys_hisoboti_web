@@ -208,10 +208,10 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Metric 2: Brutto & Karobka */}
+        {/* Metric 2: Umumiy og'irlik & Karobka */}
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-amber-500/40">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Brutto / Karobka</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Umumiy og'irlik / Karobka</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
               <Boxes className="h-4 w-4" />
             </div>
@@ -222,7 +222,7 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
           <div className="mt-2 flex items-center text-xs text-amber-400 font-medium">
-            <span>Karobka (tara): <strong>{totalKarobkaWeight.toLocaleString()} kg</strong></span>
+            <span>Karobka og'irligi: <strong>{totalKarobkaWeight.toLocaleString()} kg</strong></span>
           </div>
         </div>
 
@@ -342,7 +342,7 @@ export const DashboardPage: React.FC = () => {
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Karobka (tara)</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Karobka og'irligi</span>
                     <strong className="text-sm font-bold text-amber-400">
                       {cargo.total_karobka_plus_kg.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">kg</span>
                     </strong>
@@ -573,8 +573,8 @@ export const DashboardPage: React.FC = () => {
                     <span className="text-[10px] text-muted-foreground shrink-0">{act.created_at}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Sof: <strong className="text-foreground">{act.net_weight} kg</strong></span>
-                    <span className="text-muted-foreground">Brutto: <strong className="text-foreground">{act.gross_weight} kg</strong></span>
+                    <span className="text-muted-foreground">Toza: <strong className="text-foreground">{act.net_weight} kg</strong></span>
+                    <span className="text-muted-foreground">Og'irlik: <strong className="text-foreground">{act.gross_weight} kg</strong></span>
                   </div>
                   {act.photos_count > 0 && (
                     <div className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">

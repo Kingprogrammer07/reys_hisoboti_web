@@ -159,7 +159,7 @@ export const ReysDistributionListPage: React.FC = () => {
           <p className="text-lg sm:text-xl font-black text-foreground font-mono">{filteredEntries.length} ta</p>
         </div>
         <div className="p-3 rounded-2xl border border-border bg-card shadow-sm space-y-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Brutto Vazn</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Umumiy Og'irlik</span>
           <p className="text-lg sm:text-xl font-black text-foreground font-mono">{totalGross.toFixed(2)} kg</p>
         </div>
         <div className="p-3 rounded-2xl border border-teal-500/20 bg-teal-500/5 shadow-sm space-y-0.5">
@@ -232,13 +232,13 @@ export const ReysDistributionListPage: React.FC = () => {
 
                   <div className="flex items-center space-x-3 text-xs font-mono">
                     <span className="text-muted-foreground">
-                      Brutto: <strong className="text-foreground">{entry.grossWeight} kg</strong>
+                      Og'irlik: <strong className="text-foreground">{entry.grossWeight} kg</strong>
                     </span>
                     <span className="text-muted-foreground">
-                      Koeff: <strong className="text-foreground">{entry.tareWeight} kg</strong>
+                      Karobka: <strong className="text-foreground">{entry.tareWeight} kg</strong>
                     </span>
                     <span className="text-emerald-400 font-bold">
-                      Sof: {entry.netWeight} kg
+                      Toza: {entry.netWeight} kg
                     </span>
                   </div>
                 </div>
