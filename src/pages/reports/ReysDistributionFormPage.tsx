@@ -68,10 +68,14 @@ export const ReysDistributionFormPage: React.FC = () => {
     const next = !isFastMode;
     setIsFastMode(next);
     localStorage.setItem("mandarin_dist_fast_mode", String(next));
-    if (next) {
-      setRememberSelection(true);
-      localStorage.setItem("mandarin_dist_remember", "true");
-    }
+    setRememberSelection(next);
+    localStorage.setItem("mandarin_dist_remember", String(next));
+    setSuccessToast(
+      next
+        ? "⚡ Tezkor rejim yoqildi (Qiymatlar avtomatik eslab qolinadi)"
+        : "Tezkor rejim o'chirildi"
+    );
+    setTimeout(() => setSuccessToast(null), 2500);
   };
 
   // Tovar turi & Custom Types
@@ -596,15 +600,15 @@ export const ReysDistributionFormPage: React.FC = () => {
           <button
             type="button"
             onClick={toggleFastMode}
-            className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl border text-[11px] sm:text-xs font-bold transition-all ${
+            className={`flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               isFastMode
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm shadow-amber-500/10"
+                ? "bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-md shadow-amber-500/20 font-extrabold"
                 : "bg-background border-border text-muted-foreground hover:text-foreground"
             }`}
             title="Tezkor Rejim: Avtomatik fokus, qiymatlarni eslab qolish va doimiy kamera"
           >
-            <Zap className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isFastMode ? "text-amber-400 fill-amber-400" : ""}`} />
-            <span className="hidden md:inline">Tezkor</span>
+            <Zap className={`h-3.5 w-3.5 ${isFastMode ? "text-amber-400 fill-amber-400" : ""}`} />
+            <span>Tezkor</span>
           </button>
 
           {/* Camera Toggle */}
@@ -960,81 +964,67 @@ export const ReysDistributionFormPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* AYIRILMASIN DROPDOWN MENU */}
+              {/* AYIRILMASIN DROPDOWN MENU - COMPACT & MOBILE-FIRST */}
               {showAyrilmasinMenu && (
-                <div className="p-3 sm:p-4 rounded-2xl border border-emerald-500/30 bg-card/95 backdrop-blur-md shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <div className="flex items-center space-x-1.5">
-                      <PackageCheck className="h-4 w-4 text-emerald-400" />
-                      <span className="text-xs font-bold text-foreground">
-                        Ayirilmasin rejimi (Karobka og'irligi)
-                      </span>
-                    </div>
+                <div className="p-2 sm:p-2.5 rounded-2xl border border-emerald-500/30 bg-card/95 backdrop-blur-md shadow-2xl max-w-xs space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                    <span className="text-[11px] font-bold text-foreground flex items-center space-x-1">
+                      <span>Karobka og'irligi (Ayirilmaydi):</span>
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowAyrilmasinMenu(false)}
-                      className="p-1 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
+                      className="p-0.5 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
                       title="Yopish"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground">
-                    Bu rejimda quti og'irligidan karobka ayirilmaydi (toza vazn = umumiy vazn), lekin umumiy hisobotda karobka og'irligi sifatida qayd etiladi.
-                  </p>
-
-                  {/* Options Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* Compact List */}
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
                     {/* 0 kg option */}
                     <button
                       type="button"
                       onClick={() => selectAyrilmasinWeight(0)}
-                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-bold text-left flex items-center justify-between transition-colors cursor-pointer ${
                         coefOption === "0" && ayrilmasinWeight === 0
-                          ? "border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-md font-bold"
-                          : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          ? "bg-emerald-500 text-white font-extrabold shadow-xs"
+                          : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <div>
-                        <div className="text-xs font-bold">Ayirilmasin</div>
-                        <div className="text-[10px] opacity-70">0 kg (Belgilanmasin)</div>
-                      </div>
-                      {coefOption === "0" && ayrilmasinWeight === 0 && <Check className="h-4 w-4 shrink-0 text-emerald-400" />}
+                      <span>Ayirilmasin (0 kg)</span>
+                      {coefOption === "0" && ayrilmasinWeight === 0 && <Check className="h-3.5 w-3.5" />}
                     </button>
 
                     {/* Standard & Custom Options */}
-                    {allAyrilmasinWeights.map((weight) => {
-                      const isCustom = !DEFAULT_AYRILMASIN_WEIGHTS.includes(weight);
-                      const isSelected = coefOption === "0" && ayrilmasinWeight === weight;
+                    {allAyrilmasinWeights.map((w) => {
+                      const isCustom = !DEFAULT_AYRILMASIN_WEIGHTS.includes(w);
+                      const isSelected = coefOption === "0" && ayrilmasinWeight === w;
                       return (
                         <div
-                          key={weight}
-                          onClick={() => selectAyrilmasinWeight(weight)}
-                          className={`group relative p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-all ${
+                          key={w}
+                          onClick={() => selectAyrilmasinWeight(w)}
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-bold font-mono text-left flex items-center justify-between cursor-pointer transition-colors ${
                             isSelected
-                              ? "border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-md font-bold"
-                              : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                              ? "bg-emerald-500 text-white font-extrabold shadow-xs"
+                              : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          <div>
-                            <div className="text-xs font-bold font-mono">Ayirilmasin ({weight})</div>
-                            <div className="text-[10px] opacity-70 font-mono">{weight} kg karobka</div>
-                          </div>
-
-                          <div className="flex items-center space-x-1 shrink-0">
-                            {isSelected && <Check className="h-4 w-4 text-emerald-400" />}
+                          <span>Ayirilmasin ({w} kg)</span>
+                          <div className="flex items-center space-x-1">
+                            {isSelected && <Check className="h-3.5 w-3.5" />}
                             {isCustom && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteCustomBoxWeight(weight);
+                                  handleDeleteCustomBoxWeight(w);
                                 }}
-                                className="p-1 text-muted-foreground hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
-                                title="Ushbu maxsus qiymatni o'chirish"
+                                className="p-0.5 hover:text-rose-400 text-muted-foreground transition-colors"
+                                title="O'chirish"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             )}
                           </div>
@@ -1044,37 +1034,32 @@ export const ReysDistributionFormPage: React.FC = () => {
                   </div>
 
                   {/* Add New Custom Box Weight Input Row */}
-                  <div className="pt-2 border-t border-border/40">
-                    <label className="text-[11px] font-semibold text-foreground block mb-1.5">
-                      + Yangi karobka og'irligi qo'shish (Doimiy saqlanadi):
-                    </label>
-                    <div className="flex items-center space-x-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={newCustomBoxWeightInput}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/,/g, ".");
-                            if (/^\d*\.?\d*$/.test(val)) setNewCustomBoxWeightInput(val);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleAddCustomBoxWeight();
-                          }}
-                          placeholder="Masalan: 1.05 yoki 1.15"
-                          className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono font-bold text-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                        <span className="absolute right-3 top-2 text-[11px] font-bold text-muted-foreground">kg</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddCustomBoxWeight}
-                        className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
-                      >
-                        <Plus className="h-3.5 w-3.5 stroke-[3]" />
-                        <span>Qo'shish</span>
-                      </button>
+                  <div className="pt-1.5 border-t border-border/40 flex items-center space-x-1.5">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={newCustomBoxWeightInput}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/,/g, ".");
+                          if (/^\d*\.?\d*$/.test(val)) setNewCustomBoxWeightInput(val);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddCustomBoxWeight();
+                        }}
+                        placeholder="Masalan: 1.05"
+                        className="w-full rounded-lg border border-input bg-background pl-2 pr-6 py-1 text-xs font-mono text-foreground focus:border-emerald-500 focus:outline-none"
+                      />
+                      <span className="absolute right-2 top-1 text-[10px] text-muted-foreground font-mono">kg</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomBoxWeight}
+                      className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shrink-0 cursor-pointer shadow-xs active:scale-95 transition-all"
+                      title="Qo'shish"
+                    >
+                      <Plus className="h-3.5 w-3.5 stroke-[3]" />
+                    </button>
                   </div>
                 </div>
               )}
@@ -1137,80 +1122,6 @@ export const ReysDistributionFormPage: React.FC = () => {
               </div>
             )}
 
-            {/* Fast Mode & Qiymatlarni eslab qolish kartasi */}
-            <div className={`p-3 rounded-2xl border transition-all ${
-              isFastMode
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                : "bg-muted/40 border-border/60 text-muted-foreground"
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <div className={`p-1.5 rounded-xl ${isFastMode ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"}`}>
-                    <Zap className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-foreground flex items-center space-x-1.5">
-                      <span>Tezkor rejim</span>
-                      {isFastMode && (
-                        <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.2 rounded-md font-mono font-bold">
-                          FAOL
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      {isFastMode
-                        ? "Tovar turi va karobka og'irligi saqlanadi, kamera avtomatik ochiladi"
-                        : "Har bir yangi kiritishda qiymatlar saqlansinmi?"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Fast Mode Toggle Switch */}
-                <button
-                  type="button"
-                  onClick={toggleFastMode}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isFastMode ? "bg-amber-500" : "bg-muted"
-                  }`}
-                  role="switch"
-                  aria-checked={isFastMode}
-                  title="Tezkor rejimni yoqish / o'chirish"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                      isFastMode ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Qiymatlarni eslab qolish opsiyasi */}
-              <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-xs">
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isFastMode || rememberSelection}
-                    disabled={isFastMode}
-                    onChange={(e) => {
-                      setRememberSelection(e.target.checked);
-                      localStorage.setItem("mandarin_dist_remember", String(e.target.checked));
-                    }}
-                    className="h-4 w-4 rounded-md border-border text-emerald-500 focus:ring-emerald-500/20 disabled:opacity-80"
-                  />
-                  <span className={`text-[11px] font-semibold ${isFastMode ? "text-amber-400 font-bold" : "text-foreground hover:text-foreground"}`}>
-                    Qiymatlarni eslab qolish {isFastMode && "(Tezkor rejimda avtomatik)"}
-                  </span>
-                </label>
-
-                {grossNum > 0 && (
-                  <span className="text-emerald-400 font-bold font-mono text-xs">
-                    Toza: {computedNetWeight} kg
-                  </span>
-                )}
-              </div>
-            </div>
-
             {/* BIG ACTION BUTTON — MATCHES REYS ENTRY FORM */}
             <button
               type="button"
@@ -1218,7 +1129,7 @@ export const ReysDistributionFormPage: React.FC = () => {
               className="w-full flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-emerald-500/25 active:scale-98 transition-all cursor-pointer"
             >
               <Check className="h-5 w-5 stroke-[3]" />
-              <span>Saqlash {isFastMode ? "(Tezkor rejim faol · Qiymatlar saqlanadi)" : ""}</span>
+              <span>Saqlash {isFastMode ? "(Tezkor rejim faol)" : ""}</span>
             </button>
           </section>
         </div>
