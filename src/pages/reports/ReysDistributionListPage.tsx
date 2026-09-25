@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Search, 
   Trash2, 
+  Edit2,
   FileSpreadsheet, 
   RefreshCw, 
   CheckCircle2, 
@@ -14,7 +15,7 @@ import {
   Clock, 
   Plus
 } from "lucide-react";
-import { getReys, fetchEntries, deleteEntry, downloadFile } from "../../api";
+import { getReys, fetchEntries, deleteEntry, downloadFile, updateEntry } from "../../api";
 import { SavedEntryItem } from "../../types";
 
 export const ReysDistributionListPage: React.FC = () => {
@@ -28,6 +29,25 @@ export const ReysDistributionListPage: React.FC = () => {
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<SavedEntryItem | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    box_code: "",
+    tovar_turi: "",
+    gross_weight: "",
+    tare_weight: "",
+    coefficient_mode: "none",
+  });
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const editBoxInputRef = useRef<HTMLInputElement>(null);
+
+  const focusAboveKeyboard = (el: HTMLInputElement | null) => {
+    setTimeout(() => {
+      try {
+        el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      } catch {}
+    }, 250);
+  };
 
   const loadData = async () => {
     if (!reysId) return;
@@ -52,6 +72,28 @@ export const ReysDistributionListPage: React.FC = () => {
     loadData();
   }, [reysId]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        focusAboveKeyboard(searchInputRef.current);
+        return;
+      }
+      if (e.key === "Escape") {
+        if (viewingPhoto) setViewingPhoto(null);
+        else if (editingEntry) setEditingEntry(null);
+        return;
+      }
+      if (editingEntry && (e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleSaveEdit();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [viewingPhoto, editingEntry, editForm]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -68,6 +110,57 @@ export const ReysDistributionListPage: React.FC = () => {
       alert(`O'chirishda xatolik: ${err?.message || "Server bilan aloqa yo'q"}`);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const openEditEntry = (entry: SavedEntryItem) => {
+    setEditingEntry(entry);
+    setEditForm({
+      box_code: entry.box_code || entry.boxCode || "",
+      tovar_turi: entry.tovar_turi || "",
+      gross_weight: String(entry.gross_weight ?? entry.grossWeight ?? ""),
+      tare_weight: String(entry.tare_weight ?? entry.tareWeight ?? 0),
+      coefficient_mode: entry.coefficient_mode || "none",
+    });
+    setTimeout(() => {
+      editBoxInputRef.current?.focus();
+      focusAboveKeyboard(editBoxInputRef.current);
+    }, 80);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || savingEdit) return;
+    const gross = Number(editForm.gross_weight);
+    const tare = Number(editForm.tare_weight || 0);
+    if (!editForm.box_code.trim() || !editForm.tovar_turi.trim()) {
+      alert("Karobka kodi va tovar turini kiriting.");
+      return;
+    }
+    if (!gross || gross <= 0) {
+      alert("Og'irlikni to'g'ri kiriting.");
+      return;
+    }
+    if (tare < 0 || tare >= gross) {
+      alert("Karobka og'irligi umumiy og'irlikdan kichik bo'lishi kerak.");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      const updated = await updateEntry(editingEntry.id, {
+        box_code: editForm.box_code.trim(),
+        tovar_turi: editForm.tovar_turi.trim(),
+        gross_weight: gross,
+        tare_weight: tare,
+        coefficient_mode: editForm.coefficient_mode || "none",
+      });
+      setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      setEditingEntry(null);
+      showToast("✓ Yozuv tahrirlandi.");
+    } catch (err: any) {
+      alert(`Tahrirlashda xatolik: ${err?.message || "Server bilan aloqa yo'q"}`);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -172,6 +265,7 @@ export const ReysDistributionListPage: React.FC = () => {
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
+          ref={searchInputRef}
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -268,6 +362,14 @@ export const ReysDistributionListPage: React.FC = () => {
                   {/* Delete Button */}
                   <button
                     type="button"
+                    onClick={() => openEditEntry(entry)}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+                    title="Tahrirlash"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDelete(entry.id)}
                     disabled={isDeleting}
                     className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
@@ -279,6 +381,94 @@ export const ReysDistributionListPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+          <div className="w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-card p-4 sm:p-5 shadow-2xl space-y-4 glass-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-foreground">Partiyani tahrirlash</h3>
+                <p className="text-[11px] text-muted-foreground">Ctrl+Enter saqlaydi, Escape yopadi</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEntry(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Karobka kodi</span>
+                <input
+                  ref={editBoxInputRef}
+                  value={editForm.box_code}
+                  onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, box_code: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-teal-500 focus:outline-none"
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Tovar turi</span>
+                <input
+                  value={editForm.tovar_turi}
+                  onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, tovar_turi: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-semibold text-foreground focus:border-teal-500 focus:outline-none"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Og'irlik</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={editForm.gross_weight}
+                    onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, gross_weight: e.target.value }))}
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-teal-500 focus:outline-none"
+                  />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Karobka</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={editForm.tare_weight}
+                    onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, tare_weight: e.target.value }))}
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-teal-500 focus:outline-none"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => setEditingEntry(null)}
+                className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-500 px-4 py-2 text-xs font-bold text-white hover:bg-teal-600 disabled:opacity-50"
+              >
+                {savingEdit ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                <span>Saqlash</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

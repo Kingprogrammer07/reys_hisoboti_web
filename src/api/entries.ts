@@ -11,6 +11,14 @@ export interface CreateEntryPayload {
   created_by?: string;
 }
 
+export interface UpdateEntryPayload {
+  box_code: string;
+  tovar_turi: string;
+  gross_weight: number;
+  tare_weight: number;
+  coefficient_mode?: string;
+}
+
 export async function fetchEntries(
   reysId: number,
   includeDeleted: boolean = false
@@ -65,6 +73,13 @@ export async function adjustEntryInventory(data: {
 export async function deleteEntry(id: number): Promise<void> {
   return request(`/api/entries/${id}`, {
     method: "DELETE",
+  });
+}
+
+export async function updateEntry(id: number, data: UpdateEntryPayload): Promise<SavedEntryItem> {
+  return request(`/api/entries/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
   });
 }
 

@@ -61,6 +61,13 @@ export interface UserSession {
 
 export interface SavedEntryItem {
   id: number;
+  reys_id?: number;
+  box_code?: string;
+  tovar_turi?: string;
+  gross_weight?: number;
+  tare_weight?: number;
+  net_weight?: number;
+  coefficient_mode?: string;
   boxCode: string;
   grossWeight: number;
   tareWeight: number;
@@ -69,4 +76,3 @@ export interface SavedEntryItem {
   photoUrls?: string[];
   createdAt: string;
 }
-

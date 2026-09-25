@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -6,24 +6,16 @@ import {
   Search, 
   Trash2, 
   FileSpreadsheet, 
-  Eye, 
   Box, 
   X,
   Camera,
-  ZoomIn
+  ZoomIn,
+  Edit2,
+  Save,
+  RefreshCw
 } from "lucide-react";
-import { fetchEntries, deleteEntry, getReys } from "../../api";
-
-export interface SavedEntryItem {
-  id: number;
-  boxCode: string;
-  grossWeight: number;
-  tareWeight: number;
-  netWeight: number;
-  photoUrl?: string;
-  photoUrls?: string[];
-  createdAt: string;
-}
+import { fetchEntries, deleteEntry, getReys, updateEntry } from "../../api";
+import { SavedEntryItem } from "../../types";
 
 const CATEGORY_NAMES: Record<string, string> = {
   top: "TOP",
@@ -65,7 +57,60 @@ export const ReysEntriesListPage: React.FC = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const viewingPhoto = lightboxPhotos[lightboxIndex] || null;
+  const [editingEntry, setEditingEntry] = useState<SavedEntryItem | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    box_code: "",
+    tovar_turi: "",
+    gross_weight: "",
+    tare_weight: "",
+    coefficient_mode: "none",
+  });
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const editBoxInputRef = useRef<HTMLInputElement>(null);
+
+  const closeLightbox = () => {
+    setLightboxPhotos([]);
+    setLightboxIndex(0);
+  };
+
+  const openLightbox = (photos: string[], idx: number) => {
+    setLightboxPhotos(photos);
+    setLightboxIndex(idx);
+  };
+
+  const moveLightbox = (delta: number) => {
+    setLightboxIndex((idx) => {
+      if (lightboxPhotos.length === 0) return 0;
+      return (idx + delta + lightboxPhotos.length) % lightboxPhotos.length;
+    });
+  };
+
+  const focusAboveKeyboard = (el: HTMLInputElement | null) => {
+    setTimeout(() => {
+      try {
+        el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      } catch {}
+    }, 250);
+  };
+
+  const openEditEntry = (item: SavedEntryItem) => {
+    setEditingEntry(item);
+    setEditForm({
+      box_code: item.box_code || item.boxCode || "",
+      tovar_turi: item.tovar_turi || categoryTitle,
+      gross_weight: String(item.gross_weight ?? item.grossWeight ?? ""),
+      tare_weight: String(item.tare_weight ?? item.tareWeight ?? 0),
+      coefficient_mode: item.coefficient_mode || "none",
+    });
+    setTimeout(() => {
+      editBoxInputRef.current?.focus();
+      focusAboveKeyboard(editBoxInputRef.current);
+    }, 80);
+  };
 
   // Sync state changes with localStorage
   useEffect(() => {
@@ -78,7 +123,7 @@ export const ReysEntriesListPage: React.FC = () => {
 
   // Hide global mobile navigation and lock background when lightbox is open
   useEffect(() => {
-    if (viewingPhoto) {
+    if (viewingPhoto || editingEntry) {
       document.body.classList.add("camera-active");
       window.dispatchEvent(new Event("camera-state-change"));
     } else {
@@ -89,7 +134,50 @@ export const ReysEntriesListPage: React.FC = () => {
       document.body.classList.remove("camera-active");
       window.dispatchEvent(new Event("camera-state-change"));
     };
-  }, [viewingPhoto]);
+  }, [viewingPhoto, editingEntry]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || "").toUpperCase();
+      const typing = activeTag === "INPUT" || activeTag === "TEXTAREA";
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        focusAboveKeyboard(searchInputRef.current);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        if (viewingPhoto) {
+          closeLightbox();
+        } else if (editingEntry) {
+          setEditingEntry(null);
+        }
+        return;
+      }
+
+      if (viewingPhoto && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        moveLightbox(e.key === "ArrowLeft" ? -1 : 1);
+        return;
+      }
+
+      if (editingEntry && (e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleSaveEdit();
+        return;
+      }
+
+      if (!typing && !viewingPhoto && !editingEntry && e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [viewingPhoto, editingEntry, editForm, lightboxPhotos.length]);
 
 
   // Load entries from Backend API on mount
@@ -113,9 +201,50 @@ export const ReysEntriesListPage: React.FC = () => {
       try {
         await deleteEntry(id);
       } catch (err) {
-        console.warn("API delete failed, removing locally", err);
+        alert(`O'chirishda xatolik: ${(err as any)?.message || "Server bilan aloqa yo'q"}`);
+        return;
       }
       setSavedEntries(savedEntries.filter((e) => e.id !== id));
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || savingEdit) return;
+    const gross = Number(editForm.gross_weight);
+    const tare = Number(editForm.tare_weight || 0);
+    if (!editForm.box_code.trim()) {
+      alert("Karobka kodini kiriting.");
+      editBoxInputRef.current?.focus();
+      return;
+    }
+    if (!editForm.tovar_turi.trim()) {
+      alert("Tovar turini kiriting.");
+      return;
+    }
+    if (!gross || gross <= 0) {
+      alert("Og'irlikni to'g'ri kiriting.");
+      return;
+    }
+    if (tare < 0 || tare >= gross) {
+      alert("Karobka og'irligi umumiy og'irlikdan kichik bo'lishi kerak.");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      const updated = await updateEntry(editingEntry.id, {
+        box_code: editForm.box_code.trim(),
+        tovar_turi: editForm.tovar_turi.trim(),
+        gross_weight: gross,
+        tare_weight: tare,
+        coefficient_mode: editForm.coefficient_mode || "none",
+      });
+      setSavedEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      setEditingEntry(null);
+    } catch (err: any) {
+      alert(`Tahrirlashda xatolik: ${err?.message || "Server bilan aloqa yo'q"}`);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -199,6 +328,7 @@ export const ReysEntriesListPage: React.FC = () => {
       <div className="relative">
         <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
         <input
+          ref={searchInputRef}
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -273,6 +403,14 @@ export const ReysEntriesListPage: React.FC = () => {
 
                   <button
                     type="button"
+                    onClick={() => openEditEntry(item)}
+                    className="p-1.5 sm:p-2 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                    title="Tahrirlash"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDeleteEntry(item.id)}
                     className="p-1.5 sm:p-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors"
                     title="O'chirish"
@@ -295,7 +433,7 @@ export const ReysEntriesListPage: React.FC = () => {
                       {itemPhotos.map((photoUrl, pIdx) => (
                         <div
                           key={pIdx}
-                          onClick={() => setViewingPhoto(photoUrl)}
+                          onClick={() => openLightbox(itemPhotos, pIdx)}
                           className="relative group cursor-pointer h-11 w-11 sm:h-12 sm:w-12 rounded-xl overflow-hidden border border-border hover:border-emerald-500 transition-colors shrink-0 shadow-xs"
                           title={`Rasm #${pIdx + 1} ni kattalashtirish`}
                         >
@@ -330,16 +468,108 @@ export const ReysEntriesListPage: React.FC = () => {
         </div>
       )}
 
-      {/* 5. FULLSCREEN PHOTO LIGHTBOX MODAL (Z-[90]) */}
+      {/* 5. EDIT MODAL */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-[88] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+          <div className="w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-card p-4 sm:p-5 shadow-2xl space-y-4 glass-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-foreground">Yozuvni tahrirlash</h3>
+                <p className="text-[11px] text-muted-foreground">Ctrl+Enter saqlaydi, Escape yopadi</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEntry(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Karobka kodi</span>
+                <input
+                  ref={editBoxInputRef}
+                  value={editForm.box_code}
+                  onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, box_code: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-emerald-500 focus:outline-none"
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Tovar turi</span>
+                <input
+                  value={editForm.tovar_turi}
+                  onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, tovar_turi: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-semibold text-foreground focus:border-emerald-500 focus:outline-none"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Og'irlik</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={editForm.gross_weight}
+                    onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, gross_weight: e.target.value }))}
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-emerald-500 focus:outline-none"
+                  />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Karobka</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={editForm.tare_weight}
+                    onFocus={(e) => focusAboveKeyboard(e.currentTarget)}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, tare_weight: e.target.value }))}
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-mono font-bold text-foreground focus:border-emerald-500 focus:outline-none"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
+                Toza vazn: <strong>{Math.max(0, Number(editForm.gross_weight || 0) - Number(editForm.tare_weight || 0)).toFixed(2)} kg</strong>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => setEditingEntry(null)}
+                className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {savingEdit ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                <span>Saqlash</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. FULLSCREEN PHOTO LIGHTBOX MODAL (Z-[90]) */}
       {viewingPhoto && (
         <div 
-          onClick={() => setViewingPhoto(null)}
+          onClick={closeLightbox}
           className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 cursor-pointer animate-in fade-in duration-150"
         >
           <div className="relative max-w-2xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              onClick={() => setViewingPhoto(null)}
+              onClick={closeLightbox}
               className="absolute -top-10 sm:-top-12 right-0 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
               title="Yopish"
             >
@@ -350,11 +580,31 @@ export const ReysEntriesListPage: React.FC = () => {
               alt="Kattalashtirilgan rasm" 
               className="max-h-[80vh] max-w-full rounded-2xl object-contain border border-white/20 shadow-2xl" 
             />
+            {lightboxPhotos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => moveLightbox(-1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveLightbox(1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                >
+                  <ArrowLeft className="h-5 w-5 rotate-180" />
+                </button>
+              </>
+            )}
             <div className="mt-2.5 flex items-center space-x-3">
-              <span className="text-[11px] sm:text-xs text-white/70">Yopish uchun bosing</span>
+              <span className="text-[11px] sm:text-xs text-white/70">
+                {lightboxPhotos.length > 1 ? `${lightboxIndex + 1}/${lightboxPhotos.length} · ←/→` : "Yopish uchun bosing"}
+              </span>
               <button
                 type="button"
-                onClick={() => setViewingPhoto(null)}
+                onClick={closeLightbox}
                 className="px-2.5 py-1 rounded-xl bg-white/20 text-white text-[11px] sm:text-xs font-semibold hover:bg-white/30"
               >
                 Yopish
