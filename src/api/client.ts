@@ -9,6 +9,7 @@ export const getApiBaseUrl = (): string => {
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+const REQUEST_TIMEOUT_MS = 15000;
 
 export class ApiError extends Error {
   status: number;
@@ -27,6 +28,8 @@ export async function request<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   
   const headers = new Headers(options.headers || {});
   if (!headers.has("Accept")) {
@@ -52,13 +55,23 @@ export async function request<T = any>(
       ...options,
       headers,
       credentials: "include",
+      signal: options.signal || controller.signal,
     });
   } catch (networkErr: any) {
+    if (networkErr?.name === "AbortError") {
+      throw new ApiError(
+        0,
+        "Server javobi kechikdi. Internet yoki backend holatini tekshiring.",
+        networkErr
+      );
+    }
     throw new ApiError(
       0,
       "Server bilan aloqa o'rnatilmadi (Internet yoki server o'chiq bo'lishi mumkin)",
       networkErr
     );
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
@@ -71,6 +84,9 @@ export async function request<T = any>(
       }
     } catch {
       // not json
+    }
+    if (response.status === 401 && !path.includes("/api/auth/login")) {
+      window.dispatchEvent(new Event("reys:unauthorized"));
     }
     throw new ApiError(response.status, errorDetail, errorData);
   }

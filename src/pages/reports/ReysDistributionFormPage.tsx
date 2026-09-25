@@ -58,8 +58,20 @@ export const ReysDistributionFormPage: React.FC = () => {
 
   // Remember preference for tovar turi and coef
   const [rememberSelection, setRememberSelection] = useState<boolean>(() => {
+    const savedFast = localStorage.getItem("mandarin_dist_fast_mode") === "true";
+    if (savedFast) return true;
     return localStorage.getItem("mandarin_dist_remember") === "true";
   });
+
+  const toggleFastMode = () => {
+    const next = !isFastMode;
+    setIsFastMode(next);
+    localStorage.setItem("mandarin_dist_fast_mode", String(next));
+    if (next) {
+      setRememberSelection(true);
+      localStorage.setItem("mandarin_dist_remember", "true");
+    }
+  };
 
   // Tovar turi & Custom Types
   const [selectedType, setSelectedType] = useState<string>(() => {
@@ -385,12 +397,18 @@ export const ReysDistributionFormPage: React.FC = () => {
     setGrossWeight("");
     setCapturedPhotos([]);
 
-    if (rememberSelection) {
+    // Fast Mode or Remember: keep tovar turi and karobka og'irligi
+    const shouldRemember = isFastMode || rememberSelection;
+    if (shouldRemember) {
       localStorage.setItem("mandarin_dist_saved_type", selectedType);
       localStorage.setItem("mandarin_dist_saved_coef", coefOption);
       if (coefOption === "custom") {
         localStorage.setItem("mandarin_dist_saved_custom_coef", customCoefValue);
       }
+    } else {
+      setSelectedType("akb");
+      setCoefOption("0");
+      setCustomCoefValue("");
     }
 
     // Fast Mode: automatically reopen camera or focus input
@@ -490,17 +508,13 @@ export const ReysDistributionFormPage: React.FC = () => {
           {/* Fast Mode Toggle */}
           <button
             type="button"
-            onClick={() => {
-              const next = !isFastMode;
-              setIsFastMode(next);
-              localStorage.setItem("mandarin_dist_fast_mode", String(next));
-            }}
+            onClick={toggleFastMode}
             className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl border text-[11px] sm:text-xs font-bold transition-all ${
               isFastMode
                 ? "bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm shadow-amber-500/10"
                 : "bg-background border-border text-muted-foreground hover:text-foreground"
             }`}
-            title="Tezkor Rejim: Avtomatik fokus va doimiy kamera"
+            title="Tezkor Rejim: Avtomatik fokus, qiymatlarni eslab qolish va doimiy kamera"
           >
             <Zap className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isFastMode ? "text-amber-400 fill-amber-400" : ""}`} />
             <span className="hidden md:inline">Tezkor</span>
@@ -886,26 +900,78 @@ export const ReysDistributionFormPage: React.FC = () => {
               </div>
             )}
 
-            {/* Preferences Checkbox */}
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberSelection}
-                  onChange={(e) => {
-                    setRememberSelection(e.target.checked);
-                    localStorage.setItem("mandarin_dist_remember", String(e.target.checked));
-                  }}
-                  className="h-4 w-4 rounded-md border-border text-emerald-500 focus:ring-emerald-500/20"
-                />
-                <span className="font-semibold text-muted-foreground hover:text-foreground">Qiymatlarni eslab qolish</span>
-              </label>
+            {/* Fast Mode & Qiymatlarni eslab qolish kartasi */}
+            <div className={`p-3 rounded-2xl border transition-all ${
+              isFastMode
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                : "bg-muted/40 border-border/60 text-muted-foreground"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div className={`p-1.5 rounded-xl ${isFastMode ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"}`}>
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground flex items-center space-x-1.5">
+                      <span>Tezkor rejim</span>
+                      {isFastMode && (
+                        <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.2 rounded-md font-mono font-bold">
+                          FAOL
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {isFastMode
+                        ? "Tovar turi va karobka og'irligi saqlanadi, kamera avtomatik ochiladi"
+                        : "Har bir yangi kiritishda qiymatlar saqlansinmi?"}
+                    </p>
+                  </div>
+                </div>
 
-              {grossNum > 0 && (
-                <span className="text-emerald-400 font-bold font-mono">
-                  Sof: {computedNetWeight} kg
-                </span>
-              )}
+                {/* Fast Mode Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={toggleFastMode}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isFastMode ? "bg-amber-500" : "bg-muted"
+                  }`}
+                  role="switch"
+                  aria-checked={isFastMode}
+                  title="Tezkor rejimni yoqish / o'chirish"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      isFastMode ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Qiymatlarni eslab qolish opsiyasi */}
+              <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-xs">
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isFastMode || rememberSelection}
+                    disabled={isFastMode}
+                    onChange={(e) => {
+                      setRememberSelection(e.target.checked);
+                      localStorage.setItem("mandarin_dist_remember", String(e.target.checked));
+                    }}
+                    className="h-4 w-4 rounded-md border-border text-emerald-500 focus:ring-emerald-500/20 disabled:opacity-80"
+                  />
+                  <span className={`text-[11px] font-semibold ${isFastMode ? "text-amber-400 font-bold" : "text-foreground hover:text-foreground"}`}>
+                    Qiymatlarni eslab qolish {isFastMode && "(Tezkor rejimda avtomatik)"}
+                  </span>
+                </label>
+
+                {grossNum > 0 && (
+                  <span className="text-emerald-400 font-bold font-mono text-xs">
+                    Toza: {computedNetWeight} kg
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* BIG ACTION BUTTON — MATCHES REYS ENTRY FORM */}
@@ -915,7 +981,7 @@ export const ReysDistributionFormPage: React.FC = () => {
               className="w-full flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-emerald-500/25 active:scale-98 transition-all cursor-pointer"
             >
               <Check className="h-5 w-5 stroke-[3]" />
-              <span>Saqlash {isFastMode ? "(Tezkor rejim faol)" : ""}</span>
+              <span>Saqlash {isFastMode ? "(Tezkor rejim faol · Qiymatlar saqlanadi)" : ""}</span>
             </button>
           </section>
         </div>

@@ -16,29 +16,42 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const token = localStorage.getItem("reys_token");
+    const savedUser = localStorage.getItem("reys_user");
+    return token && savedUser ? { username: savedUser } : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem("reys_token");
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !localStorage.getItem("reys_token");
+  });
+
+  const clearSession = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem("reys_token");
+    localStorage.removeItem("reys_user");
+  };
 
   const checkAuth = async () => {
     try {
-      setIsLoading(true);
+      if (!localStorage.getItem("reys_token")) {
+        setIsLoading(true);
+      }
       const res = await authApi.getMe();
       if (res.authenticated && res.user) {
         setUser({ username: res.user });
         setIsAuthenticated(true);
         localStorage.setItem("reys_user", res.user);
       } else {
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem("reys_token");
-        localStorage.removeItem("reys_user");
+        clearSession();
       }
     } catch (err) {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem("reys_token");
-      localStorage.removeItem("reys_user");
+      if (!localStorage.getItem("reys_token")) {
+        clearSession();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -46,6 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => clearSession();
+    window.addEventListener("reys:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("reys:unauthorized", handleUnauthorized);
   }, []);
 
   const login = async (pinOrPassword: string, username: string = "admin"): Promise<boolean> => {
@@ -74,10 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem("reys_token");
-      localStorage.removeItem("reys_user");
+      clearSession();
     }
   };
 

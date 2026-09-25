@@ -20,18 +20,30 @@ interface RecycledCargoItem extends CargoItem {
 }
 
 const formatDate = (d: Date) => d.toISOString().split("T")[0];
+const CARGOS_CACHE_KEY = "cargos_cache";
+
+const readCargosCache = (): CargoItem[] => {
+  try {
+    const cached =
+      sessionStorage.getItem(CARGOS_CACHE_KEY) ||
+      localStorage.getItem(CARGOS_CACHE_KEY);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCargosCache = (items: CargoItem[]) => {
+  const serialized = JSON.stringify(items);
+  sessionStorage.setItem(CARGOS_CACHE_KEY, serialized);
+  localStorage.setItem(CARGOS_CACHE_KEY, serialized);
+};
 
 // ROUTE: /reports/cargos
 export const CargoListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [cargoList, setCargoList] = useState<CargoItem[]>(() => {
-    try {
-      const cached = sessionStorage.getItem("cargos_cache");
-      if (cached) return JSON.parse(cached);
-    } catch {}
-    return [];
-  });
-  const [loading, setLoading] = useState<boolean>(() => !sessionStorage.getItem("cargos_cache"));
+  const [cargoList, setCargoList] = useState<CargoItem[]>(readCargosCache);
+  const [loading, setLoading] = useState<boolean>(() => readCargosCache().length === 0);
 
   // Recycle Bin State
   const [recycledCargos, setRecycledCargos] = useState<RecycledCargoItem[]>([]);
@@ -112,7 +124,7 @@ export const CargoListPage: React.FC = () => {
       const res = await fetchCargos();
       if (res && Array.isArray(res.items)) {
         setCargoList(res.items);
-        sessionStorage.setItem("cargos_cache", JSON.stringify(res.items));
+        writeCargosCache(res.items);
       }
     } catch (err) {
       console.warn("Could not load cargos from API", err);
